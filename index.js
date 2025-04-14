@@ -5,7 +5,7 @@ import fastifyFormbody from "@fastify/formbody";
 import fastifyWebsocket from "@fastify/websocket";
 configDotenv();
 
-const fastify = Fastify();
+const fastify = Fastify({ logger: true });
 fastify.register(fastifyFormbody);
 fastify.register(fastifyWebsocket);
 const SYSTEM_MESSAGE = `Your name is AVA, a highly skilled and approachable student advisor at One Window, a trusted consultancy that specializes in helping students unlock global higher education opportunities. You are not just an advisor—you are a persuasive guide and motivator who helps students take confident steps toward their academic and career dreams.
@@ -280,10 +280,12 @@ fastify.register(async (fastify) => {
         openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
     });
 });
-fastify.listen({ port: PORT }, (err) => {
-    if (err) {
-        console.error(err);
-        process.exit(1);
-    }
+// Run the server!
+try {
+    await fastify.listen({ port: 3000 })
     console.log(`server is listening on port :${PORT}`)
-})
+} catch (err) {
+    fastify.log.error(err)
+    process.exit(1)
+}
+
