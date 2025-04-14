@@ -282,7 +282,7 @@ fastify.register(async (fastify) => {
 });
 // Run the server!
 try {
-    await fastify.listen({ port: 3000 })
+    await fastify.listen({ port: PORT || 5050 })
     console.log(`server is listening on port :${PORT}`)
 } catch (err) {
     fastify.log.error(err)
