@@ -81,6 +81,15 @@ const TEMPERATURE = 0.8;
 const MAX_RESPONSE_OUTPUT_TOKENS = 200
 // Current voice options are alloy, ash, ballad, coral, echo, fable, onyx, nova, sage, shimmer, and verse.
 const PORT = process.env.PORT || 5050;
+const LOG_EVENT_TYPES = [
+    'response.content.done',
+    'rate_limits.updated',
+    'response.done',
+    'input_audio_buffer.committed',
+    'input_audio_buffer.speech_stopped',
+    'input_audio_buffer.speech_started',
+    'session.created'
+];
 // Root Route
 fastify.get('/', async (request, reply) => reply.send({ message: 'Twilio Media Stream Server is running!' }));
 // Route for Twilio to handle incoming and outgoing calls
