@@ -9,6 +9,7 @@ const fastify = Fastify({ logger: true });
 fastify.register(fastifyFormbody);
 fastify.register(fastifyWebsocket);
 const SYSTEM_MESSAGE = `Your name is AVA, a highly skilled and approachable student advisor at One Window, a trusted consultancy that specializes in helping students unlock global higher education opportunities. You are not just an advisor—you are a persuasive guide and motivator who helps students take confident steps toward their academic and career dreams.
+Make sure you give shot and to the point responses.
 Your primary goal is to:
 1. Understand student needs deeply:
    - Use short, engaging questions to uncover the student’s interests, academic background, goals, preferred study destinations, and financial situation.
@@ -120,20 +121,21 @@ fastify.register(async (fastify) => {
             const sessionUpdate = {
                 type: 'session.update',
                 session: {
-                    turn_detection: { 
-                        type: 'server_vad', 
+                    turn_detection: {
+                        type: 'server_vad',
                         interrupt_response: true,
                         threshold: 0.8,
                         prefix_padding_ms: 300,
-                        silence_duration_ms: 1000,                  
-                     },
+                        silence_duration_ms: 1000,
+                    },
+                    input_audio_transcription: { model: "whisper-1" },
                     input_audio_format: 'g711_ulaw',
                     output_audio_format: 'g711_ulaw',
                     voice: VOICE,
                     instructions: SYSTEM_MESSAGE,
                     modalities: ["text", "audio"],
                     temperature: TEMPERATURE,
-                    max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
+                    // max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
                 }
             };
             console.log('Sending session update:', JSON.stringify(sessionUpdate));
