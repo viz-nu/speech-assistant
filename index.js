@@ -102,7 +102,7 @@ fastify.register(async (fastify) => {
         console.log('Client connected');
         const openAiWs = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL}`, {
             headers: {
-                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                Authorization: `Bearer ${process.env.OPEN_API_KEY}`,
                 "OpenAI-Beta": "realtime=v1"
             }
         });
