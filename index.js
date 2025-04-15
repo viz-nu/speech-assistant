@@ -84,12 +84,12 @@ const PORT = process.env.PORT || 5050;
 // Root Route
 fastify.get('/', async (request, reply) => reply.send({ message: 'Twilio Media Stream Server is running!' }));
 // Route for Twilio to handle incoming and outgoing calls
+// {/* <Say>O.K. you can start talking!</Say> */}
 fastify.all('/incoming-call', async (request, reply) => {
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
                           <Response>
-                              <Say>Hi! Thanks for calling One Window</Say>
+                              <Say>Hi! Thanks for reaching out OneWindow, and I'm AVA best student advisor at One Window. I'm here to make your study abroad experience as smooth as possible. How can I help you today?</Say>
                               <Pause length="1"/>
-                              <Say>O.K. you can start talking!</Say>
                               <Connect>
                                   <Stream url="wss://${request.headers.host}/media-stream" />
                               </Connect>
@@ -122,7 +122,7 @@ fastify.register(async (fastify) => {
                     type: 'session.update',
                     session: {
                         turn_detection: { type: 'server_vad', interrupt_response: true },
-                        input_audio_transcription: { model: "whisper" },
+                        input_audio_transcription: { model: "whisper-1" },
                         input_audio_format: 'g711_ulaw',
                         output_audio_format: 'g711_ulaw',
                         voice: VOICE,
