@@ -122,7 +122,7 @@ fastify.register(async (fastify) => {
                     type: 'session.update',
                     session: {
                         turn_detection: { type: 'server_vad', interrupt_response: true },
-                        input_audio_transcription: { model: "whisper-1" },
+                        // input_audio_transcription: { model: "whisper-1" },
                         input_audio_format: 'g711_ulaw',
                         output_audio_format: 'g711_ulaw',
                         voice: VOICE,
