@@ -101,6 +101,9 @@ fastify.register(async (fastify) => {
             }
         });
         let streamSid = null;
+        let isAiSpeaking = false;        // Track if AI is currently speaking
+        let userInterrupted = false;     // Flag to track if user has interrupted
+        let isProcessingUserInput = false; // Track if we're processing user input
         const sendSessionUpdate = () => {
             const sessionUpdate = {
                 type: 'session.update',
@@ -125,6 +128,16 @@ fastify.register(async (fastify) => {
             console.log('Sending session update:', JSON.stringify(sessionUpdate));
             openAiWs.send(JSON.stringify(sessionUpdate));
         };
+        // Function to commit the audio buffer and process user input
+        const commitAudioBuffer = () => {
+            if (openAiWs.readyState === WebSocket.OPEN) {
+                const commitBuffer = {
+                    type: 'input_audio_buffer.commit'
+                };
+                openAiWs.send(JSON.stringify(commitBuffer));
+                isProcessingUserInput = true;
+            }
+        };
         // Open event for OpenAI WebSocket
         openAiWs.on('open', () => {
             console.log('Connected to the OpenAI Realtime API');
@@ -139,14 +152,78 @@ fastify.register(async (fastify) => {
                         console.log('Session updated successfully');
                         break;
                     case 'response.audio.delta':
-                        if (response.delta) connection.send(JSON.stringify({ event: 'media', streamSid: streamSid, media: { payload: Buffer.from(response.delta, 'base64').toString('base64') } }));
+                        isAiSpeaking = true; // AI is now speaking
+                        // Only forward audio if user hasn't interrupted
+                        if (!userInterrupted && response.delta) {
+                            connection.send(JSON.stringify({
+                                event: 'media',
+                                streamSid: streamSid,
+                                media: { payload: Buffer.from(response.delta, 'base64').toString('base64') }
+                            }));
+                        }
                         break;
                     case 'conversation.item.input_audio_transcription.completed':
-                        if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
+                        if (response.transcript && response.transcript.trim()) {
+                            console.log('USER SAID (complete):', response.transcript);
+                            isProcessingUserInput = false;
+                        }
                         break;
                     case 'response.audio_transcript.done':
                         if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
+                        isAiSpeaking = false; // AI finished speaking this segment
                         break;
+                    case 'response.interrupted':
+                        console.log('Response was interrupted by user');
+                        isAiSpeaking = false;
+                        userInterrupted = true;
+                        // Now we need to process the user's new input
+                        commitAudioBuffer();
+                        break;
+                    case 'turn.detected':
+                        console.log('Turn detected - user is speaking while AI was speaking');
+                        if (isAiSpeaking) {
+                            console.log('User interrupted AI, stopping AI response');
+                            userInterrupted = true;
+                            isAiSpeaking = false;
+                        }
+                        break;
+                    case 'input_audio.detected_speech_begin':
+                        console.log('Speech detected from user');
+                        if (isAiSpeaking) {
+                            console.log('User started speaking while AI was responding');
+                            userInterrupted = true;
+                            isAiSpeaking = false;
+                        }
+                        break;
+                    case 'input_audio.detected_speech_end':
+                        console.log('End of user speech detected');
+                        // If we detected an interruption and speech has ended, commit the buffer
+                        if (userInterrupted && !isProcessingUserInput) {
+                            console.log('Processing user interruption');
+                            commitAudioBuffer();
+                        }
+                        break;
+
+                    case 'response.created':
+                        // Reset interruption status when starting a new response
+                        userInterrupted = false;
+                        break;
+
+                    case 'response.done':
+                        console.log('AI response complete');
+                        isAiSpeaking = false;
+                        userInterrupted = false;
+                        break;
+
+                    case 'input_audio_buffer.committed':
+                        console.log('Audio buffer committed for processing');
+                        break;
+                    case 'conversation.item.input_audio_transcription.delta':
+                        if (response.delta && response.delta.transcript) {
+                            console.log('USER SAYING:', response.delta.transcript);
+                        }
+                        break;
+
                     case 'response.content_part.done':
                         break;
                     case 'response.content_part.added':
@@ -193,9 +270,26 @@ fastify.register(async (fastify) => {
                         streamSid = data.start.streamSid;
                         console.log('Incoming stream has started', streamSid);
                         break;
+                    case 'stop_speaking':
+                        // Custom event to manually stop the AI from speaking
+                        if (isAiSpeaking) {
+                            console.log('Manually stopping AI speech');
+                            userInterrupted = true;
+                            isAiSpeaking = false;
+
+                            // Optionally notify OpenAI that we're interrupting
+                            // This could be a custom message or using another OpenAI API endpoint
+                        }
+                        break;
+                    case 'commit_buffer':
+                        // Custom event to manually commit the audio buffer
+                        commitAudioBuffer();
+                        break;
+
                     default:
                         console.log('Received non-media event:', data.event);
                         break;
+
                 }
             } catch (error) {
                 console.error('Error parsing message:', error, 'Message:', message);
