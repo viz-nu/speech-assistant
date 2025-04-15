@@ -120,13 +120,14 @@ fastify.register(async (fastify) => {
             const sessionUpdate = {
                 type: 'session.update',
                 session: {
-                    turn_detection: { type: 'server_vad' },
+                    turn_detection: { type: 'server_vad', interrupt_response: true },
                     input_audio_format: 'g711_ulaw',
                     output_audio_format: 'g711_ulaw',
                     voice: VOICE,
                     instructions: SYSTEM_MESSAGE,
                     modalities: ["text", "audio"],
                     temperature: TEMPERATURE,
+                    max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
                 }
             };
             console.log('Sending session update:', JSON.stringify(sessionUpdate));
@@ -141,20 +142,26 @@ fastify.register(async (fastify) => {
         openAiWs.on('message', (data) => {
             try {
                 const response = JSON.parse(data);
-                if (LOG_EVENT_TYPES.includes(response.type)) {
-                    console.log(`Received event: ${response.type}`, response);
+                switch (response.type) {
+                    case 'session.updated':
+                        console.log('Session updated successfully');
+                        break;
+                    case 'response.audio.delta':
+                        if (response.delta) connection.send(JSON.stringify({ event: 'media', streamSid: streamSid, media: { payload: Buffer.from(response.delta, 'base64').toString('base64') } }));
+                        break;
+                    case 'conversation.item.input_audio_transcription.completed':
+                        if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
+                        break;
+                    case 'response.audio_transcript.done':
+                        if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
+                        break;
+                    default:
+                        console.log(`Received event: ${response.type}`, response);
+                        break;
                 }
-                if (response.type === 'session.updated') {
-                    console.log('Session updated successfully:', response);
-                }
-                if (response.type === 'response.audio.delta' && response.delta) {
-                    const audioDelta = {
-                        event: 'media',
-                        streamSid: streamSid,
-                        media: { payload: Buffer.from(response.delta, 'base64').toString('base64') }
-                    };
-                    connection.send(JSON.stringify(audioDelta));
-                }
+                // if (LOG_EVENT_TYPES.includes(response.type)) {
+                //     console.log(`Received event: ${response.type}`, response);
+                // }
             } catch (error) {
                 console.error('Error processing OpenAI message:', error, 'Raw message:', data);
             }
@@ -271,9 +278,6 @@ fastify.register(async (fastify) => {
 //                         if (response.response.usage) console.log('Token usage:', response.response.usage); // Log token usage
 //                         break;
 //                     // Audio transcription events
-//                     case 'conversation.item.input_audio_transcription.completed':
-//                         if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
-//                         break;
 //                     case 'conversation.item.input_audio_transcription.delta':
 //                         // if (response.delta && response.delta.trim()) console.log('USER SAYING (partial):', response.delta);
 //                         break;
