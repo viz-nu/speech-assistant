@@ -171,9 +171,9 @@ fastify.register(async (fastify) => {
                     case 'conversation.item.input_audio_transcription.completed':
                         if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
                         break;
-                    // case 'conversation.item.input_audio_transcription.delta':
-                    //     if (response.delta && response.delta.trim()) console.log('USER SAYING (partial):', response.delta);
-                    //     break;
+                    case 'conversation.item.input_audio_transcription.delta':
+                        // if (response.delta && response.delta.trim()) console.log('USER SAYING (partial):', response.delta);
+                        break;
                     case 'conversation.item.input_audio_transcription.failed':
                         console.error('Transcription failed:', response.error);
                         break;
@@ -224,16 +224,16 @@ fastify.register(async (fastify) => {
                     case 'response.audio_transcript.done':
                         if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
                         break;
-                    // case 'response.audio_transcript.delta':
-                    //     if (response.delta && response.delta.trim()) console.log('AUDIO TRANSCRIPT (partial):', response.delta);
-                    //     break;
+                    case 'response.audio_transcript.delta':
+                        // if (response.delta && response.delta.trim()) console.log('AUDIO TRANSCRIPT (partial):', response.delta);
+                        break;
                     // Text events
                     case 'response.text.done':
                         if (response.text && response.text.trim()) console.log('ASSISTANT SAID (complete):', response.text); //currentConversation.push(`ASSISTANT: ${response.text}`);
                         break;
-                    // case 'response.text.delta':
-                    //     if (response.delta && response.delta.trim()) console.log('ASSISTANT SAYING (partial):', response.delta);// Accumulate assistant text if needed
-                    //     break;
+                    case 'response.text.delta':
+                        // if (response.delta && response.delta.trim()) console.log('ASSISTANT SAYING (partial):', response.delta);// Accumulate assistant text if needed
+                        break;
                     default:
                         console.log(`Un Addressed event: ${response.type}`, JSON.stringify(response, null, 2));
                         break;
@@ -290,4 +290,5 @@ try {
     fastify.log.error(err)
     process.exit(1)
 }
+
 
