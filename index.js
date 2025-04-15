@@ -100,143 +100,51 @@ fastify.all('/incoming-call', async (request, reply) => {
 fastify.register(async (fastify) => {
     fastify.get('/media-stream', { websocket: true }, (connection, req) => {
         console.log('Client connected');
-        // Add a try-catch block around WebSocket initialization
-        // RESOURCES
-        let openAiWs;
-        try {
-            console.log('Attempting to connect to OpenAI WebSocket');
-            openAiWs = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL}`, { headers: { Authorization: `Bearer ${process.env.OPEN_API_KEY}`, "OpenAI-Beta": "realtime=v1" } });
-            console.log('WebSocket created, waiting for connection');
-        } catch (error) {
-            console.error('Failed to create WebSocket:', error);
-            connection.close();
-            return;
-        }
+        const openAiWs = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL}`, {
+            headers: {
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                "OpenAI-Beta": "realtime=v1"
+            }
+        });
         let streamSid = null;
-        // EVENTS 
+        const sendSessionUpdate = () => {
+            const sessionUpdate = {
+                type: 'session.update',
+                session: {
+                    turn_detection: { type: 'server_vad' },
+                    input_audio_format: 'g711_ulaw',
+                    output_audio_format: 'g711_ulaw',
+                    voice: VOICE,
+                    instructions: SYSTEM_MESSAGE,
+                    modalities: ["text", "audio"],
+                    temperature: TEMPERATURE,
+                }
+            };
+            console.log('Sending session update:', JSON.stringify(sessionUpdate));
+            openAiWs.send(JSON.stringify(sessionUpdate));
+        };
         // Open event for OpenAI WebSocket
         openAiWs.on('open', () => {
             console.log('Connected to the OpenAI Realtime API');
-            setTimeout(() => {
-                openAiWs.send(JSON.stringify({
-                    type: 'session.update',
-                    session: {
-                        turn_detection: { type: 'server_vad', interrupt_response: true },
-                        // input_audio_transcription: { model: "whisper-1" },
-                        input_audio_format: 'g711_ulaw',
-                        output_audio_format: 'g711_ulaw',
-                        voice: VOICE,
-                        instructions: SYSTEM_MESSAGE,
-                        modalities: ["text", "audio"],
-                        temperature: TEMPERATURE,
-                        max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
-                    }
-                }));
-            }, 250);// Ensure connection stability, send after .25 seconds
+            setTimeout(sendSessionUpdate, 250); // Ensure connection stability, send after .25 seconds
         });
         // Listen for messages from the OpenAI WebSocket (and send to Twilio if necessary)
         openAiWs.on('message', (data) => {
             try {
                 const response = JSON.parse(data);
-                switch (response.type) {
-                    // Input audio buffer events
-                    case 'input_audio_buffer.speech_started':
-                        console.log('Speech detected at', response.audio_start_ms, 'ms, expected item:', response.item_id);
-                        break;
-                    case 'input_audio_buffer.committed':
-                        console.log('Audio buffer committed, created item:', response.item_id);
-                        break;
-                    case 'input_audio_buffer.cleared':
-                        console.log('Audio buffer cleared');
-                        break;
-                    case 'input_audio_buffer.speech_stopped':
-                        console.log('Speech stopped at', response.audio_end_ms, 'ms, created item:', response.item_id);
-                        break;
-                    // Output item events
-                    case 'response.output_item.added':
-                        console.log('Output item added:', response.item.id, 'to response:', response.response_id);
-                        break;
-                    case 'response.output_item.done':
-                        console.log('Output item completed:', response.item.id);
-                        break;
-                    // Response events
-                    case 'response.created':
-                        console.log('Response created:', response.response.id);
-                        break;
-                    case 'response.done':
-                        console.log('Response completed:', response.response.id);
-                        if (response.response.usage) console.log('Token usage:', response.response.usage); // Log token usage
-                        break;
-                    // Audio transcription events
-                    case 'conversation.item.input_audio_transcription.completed':
-                        if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
-                        break;
-                    case 'conversation.item.input_audio_transcription.delta':
-                        // if (response.delta && response.delta.trim()) console.log('USER SAYING (partial):', response.delta);
-                        break;
-                    case 'conversation.item.input_audio_transcription.failed':
-                        console.error('Transcription failed:', response.error);
-                        break;
-                    // Conversation events
-                    case 'conversation.created':
-                        console.log('Conversation created:', response.conversation.id);
-                        break;
-                    case 'conversation.item.created':
-                        console.log('Conversation item created:', response.item.id, 'Previous item:', response.previous_item_id);
-                        break;
-                    // Content part events
-                    case 'response.content_part.added':
-                        console.log('Content part added to item:', response.item_id, 'type:', response.part.type);
-                        break;
-                    case 'response.content_part.done':
-                        console.log('Content part completed for item:', response.item_id);
-                        break;
-                    // Session events
-                    case 'session.created':
-                        console.log('Session created:', response.session.id);
-                        break;
-                    case 'session.updated':
-                        console.log('Session updated successfully:', response.session);
-                        break;
-                    // Audio events - send to Twilio
-                    case 'response.audio.delta':
-                        if (response.delta) connection.send(JSON.stringify({ event: 'media', streamSid: streamSid, media: { payload: Buffer.from(response.delta, 'base64').toString('base64') } }));
-                        break;
-                    case 'response.audio.done':
-                        console.log('Audio stream completed for item:', response.item_id);
-                        break
-                    // Transcription session updates
-                    case 'transcription_session.updated':
-                        console.log('Transcription session updated:', response.session);
-                        break;
-                    // Error handling
-                    case 'error':
-                        console.error('Error from OpenAI:', response.error);
-                        break;
-                    // Rate limits
-                    case 'rate_limits.updated':
-                        console.log('Rate limits updated:', response.rate_limits);
-                        break;
-                    case 'response.audio.done':
-                        console.log('Audio stream completed for item:', response.item_id);
-                        break;
-                    // Text events
-                    case 'response.audio_transcript.done':
-                        if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
-                        break;
-                    case 'response.audio_transcript.delta':
-                        // if (response.delta && response.delta.trim()) console.log('AUDIO TRANSCRIPT (partial):', response.delta);
-                        break;
-                    // Text events
-                    case 'response.text.done':
-                        if (response.text && response.text.trim()) console.log('ASSISTANT SAID (complete):', response.text); //currentConversation.push(`ASSISTANT: ${response.text}`);
-                        break;
-                    case 'response.text.delta':
-                        // if (response.delta && response.delta.trim()) console.log('ASSISTANT SAYING (partial):', response.delta);// Accumulate assistant text if needed
-                        break;
-                    default:
-                        console.log(`Un Addressed event: ${response.type}`, JSON.stringify(response, null, 2));
-                        break;
+                if (LOG_EVENT_TYPES.includes(response.type)) {
+                    console.log(`Received event: ${response.type}`, response);
+                }
+                if (response.type === 'session.updated') {
+                    console.log('Session updated successfully:', response);
+                }
+                if (response.type === 'response.audio.delta' && response.delta) {
+                    const audioDelta = {
+                        event: 'media',
+                        streamSid: streamSid,
+                        media: { payload: Buffer.from(response.delta, 'base64').toString('base64') }
+                    };
+                    connection.send(JSON.stringify(audioDelta));
                 }
             } catch (error) {
                 console.error('Error processing OpenAI message:', error, 'Raw message:', data);
@@ -248,21 +156,17 @@ fastify.register(async (fastify) => {
                 const data = JSON.parse(message);
                 switch (data.event) {
                     case 'media':
-                        if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ event_id: "client-append-" + Date.now(), type: 'input_audio_buffer.append', audio: data.media.payload }));
+                        if (openAiWs.readyState === WebSocket.OPEN) {
+                            const audioAppend = {
+                                type: 'input_audio_buffer.append',
+                                audio: data.media.payload
+                            };
+                            openAiWs.send(JSON.stringify(audioAppend));
+                        }
                         break;
                     case 'start':
-                        console.log('Incoming stream has started', data.start.streamSid);
-                        break;
-                    case 'stop':
-                        // When the stream stops, commit the buffer (if not using Server VAD)
-                        if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.commit', event_id: "client-commit-" + Date.now() }));
-                        break;
-                    case 'error':
-                        // In case of error, clear the buffer
-                        if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.clear', event_id: "client-clear-" + Date.now() }));
-                        break;
-                    case 'mark':
-                        console.log('Mark received', data.mark);
+                        streamSid = data.start.streamSid;
+                        console.log('Incoming stream has started', streamSid);
                         break;
                     default:
                         console.log('Received non-media event:', data.event);
@@ -274,14 +178,204 @@ fastify.register(async (fastify) => {
         });
         // Handle connection close
         connection.on('close', () => {
+            if (openAiWs.readyState === WebSocket.OPEN) openAiWs.close();
             console.log('Client disconnected.');
-            if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.close();
         });
-        // Handle WebSocket close and errors - use consistent event listener pattern
-        openAiWs.on('close', () => console.log('Disconnected from the OpenAI Realtime API'));
-        openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
+        // Handle WebSocket close and errors
+        openAiWs.on('close', () => {
+            console.log('Disconnected from the OpenAI Realtime API');
+        });
+        openAiWs.on('error', (error) => {
+            console.error('Error in the OpenAI WebSocket:', error);
+        });
     });
 });
+// WebSocket route for media-stream
+// fastify.register(async (fastify) => {
+//     fastify.get('/media-stream', { websocket: true }, (connection, req) => {
+//         console.log('Client connected');
+//         // Add a try-catch block around WebSocket initialization
+//         // RESOURCES
+//         let openAiWs;
+//         try {
+//             console.log('Attempting to connect to OpenAI WebSocket');
+//             openAiWs = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL}`, { headers: { Authorization: `Bearer ${process.env.OPEN_API_KEY}`, "OpenAI-Beta": "realtime=v1" } });
+//             console.log('WebSocket created, waiting for connection');
+//         } catch (error) {
+//             console.error('Failed to create WebSocket:', error);
+//             connection.close();
+//             return;
+//         }
+//         let streamSid = null;
+//         // EVENTS 
+//         // Open event for OpenAI WebSocket
+//         openAiWs.on('open', () => {
+//             console.log('Connected to the OpenAI Realtime API');
+//             setTimeout(() => {
+//                 openAiWs.send(JSON.stringify({
+//                     type: 'session.update',
+//                     session: {
+//                         turn_detection: { type: 'server_vad', interrupt_response: true },
+//                         // input_audio_transcription: { model: "whisper-1" },
+//                         input_audio_format: 'g711_ulaw',
+//                         output_audio_format: 'g711_ulaw',
+//                         voice: VOICE,
+//                         instructions: SYSTEM_MESSAGE,
+//                         modalities: ["text", "audio"],
+//                         temperature: TEMPERATURE,
+//                         max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
+//                     }
+//                 }));
+//             }, 250);// Ensure connection stability, send after .25 seconds
+//         });
+//         // Listen for messages from the OpenAI WebSocket (and send to Twilio if necessary)
+//         openAiWs.on('message', (data) => {
+//             try {
+//                 const response = JSON.parse(data);
+//                 switch (response.type) {
+//                     // Input audio buffer events
+//                     case 'input_audio_buffer.speech_started':
+//                         console.log('Speech detected at', response.audio_start_ms, 'ms, expected item:', response.item_id);
+//                         break;
+//                     case 'input_audio_buffer.committed':
+//                         console.log('Audio buffer committed, created item:', response.item_id);
+//                         break;
+//                     case 'input_audio_buffer.cleared':
+//                         console.log('Audio buffer cleared');
+//                         break;
+//                     case 'input_audio_buffer.speech_stopped':
+//                         console.log('Speech stopped at', response.audio_end_ms, 'ms, created item:', response.item_id);
+//                         break;
+//                     // Output item events
+//                     case 'response.output_item.added':
+//                         console.log('Output item added:', response.item.id, 'to response:', response.response_id);
+//                         break;
+//                     case 'response.output_item.done':
+//                         console.log('Output item completed:', response.item.id);
+//                         break;
+//                     // Response events
+//                     case 'response.created':
+//                         console.log('Response created:', response.response.id);
+//                         break;
+//                     case 'response.done':
+//                         console.log('Response completed:', response.response.id);
+//                         if (response.response.usage) console.log('Token usage:', response.response.usage); // Log token usage
+//                         break;
+//                     // Audio transcription events
+//                     case 'conversation.item.input_audio_transcription.completed':
+//                         if (response.transcript && response.transcript.trim()) console.log('USER SAID (complete):', response.transcript); // currentConversation.push(`USER: ${response.transcript}`);
+//                         break;
+//                     case 'conversation.item.input_audio_transcription.delta':
+//                         // if (response.delta && response.delta.trim()) console.log('USER SAYING (partial):', response.delta);
+//                         break;
+//                     case 'conversation.item.input_audio_transcription.failed':
+//                         console.error('Transcription failed:', response.error);
+//                         break;
+//                     // Conversation events
+//                     case 'conversation.created':
+//                         console.log('Conversation created:', response.conversation.id);
+//                         break;
+//                     case 'conversation.item.created':
+//                         console.log('Conversation item created:', response.item.id, 'Previous item:', response.previous_item_id);
+//                         break;
+//                     // Content part events
+//                     case 'response.content_part.added':
+//                         console.log('Content part added to item:', response.item_id, 'type:', response.part.type);
+//                         break;
+//                     case 'response.content_part.done':
+//                         console.log('Content part completed for item:', response.item_id);
+//                         break;
+//                     // Session events
+//                     case 'session.created':
+//                         console.log('Session created:', response.session.id);
+//                         break;
+//                     case 'session.updated':
+//                         console.log('Session updated successfully:', response.session);
+//                         break;
+//                     // Audio events - send to Twilio
+//                     case 'response.audio.delta':
+//                         if (response.delta) connection.send(JSON.stringify({ event: 'media', streamSid: streamSid, media: { payload: Buffer.from(response.delta, 'base64').toString('base64') } }));
+//                         break;
+//                     case 'response.audio.done':
+//                         console.log('Audio stream completed for item:', response.item_id);
+//                         break
+//                     // Transcription session updates
+//                     case 'transcription_session.updated':
+//                         console.log('Transcription session updated:', response.session);
+//                         break;
+//                     // Error handling
+//                     case 'error':
+//                         console.error('Error from OpenAI:', response.error);
+//                         break;
+//                     // Rate limits
+//                     case 'rate_limits.updated':
+//                         console.log('Rate limits updated:', response.rate_limits);
+//                         break;
+//                     case 'response.audio.done':
+//                         console.log('Audio stream completed for item:', response.item_id);
+//                         break;
+//                     // Text events
+//                     case 'response.audio_transcript.done':
+//                         if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
+//                         break;
+//                     case 'response.audio_transcript.delta':
+//                         // if (response.delta && response.delta.trim()) console.log('AUDIO TRANSCRIPT (partial):', response.delta);
+//                         break;
+//                     // Text events
+//                     case 'response.text.done':
+//                         if (response.text && response.text.trim()) console.log('ASSISTANT SAID (complete):', response.text); //currentConversation.push(`ASSISTANT: ${response.text}`);
+//                         break;
+//                     case 'response.text.delta':
+//                         // if (response.delta && response.delta.trim()) console.log('ASSISTANT SAYING (partial):', response.delta);// Accumulate assistant text if needed
+//                         break;
+//                     default:
+//                         console.log(`Un Addressed event: ${response.type}`, JSON.stringify(response, null, 2));
+//                         break;
+//                 }
+//             } catch (error) {
+//                 console.error('Error processing OpenAI message:', error, 'Raw message:', data);
+//             }
+//         });
+//         // Handle incoming messages from Twilio
+//         connection.on('message', (message) => {
+//             try {
+//                 const data = JSON.parse(message);
+//                 switch (data.event) {
+//                     case 'media':
+//                         if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ event_id: "client-append-" + Date.now(), type: 'input_audio_buffer.append', audio: data.media.payload }));
+//                         break;
+//                     case 'start':
+//                         console.log('Incoming stream has started', data.start.streamSid);
+//                         break;
+//                     case 'stop':
+//                         // When the stream stops, commit the buffer (if not using Server VAD)
+//                         if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.commit', event_id: "client-commit-" + Date.now() }));
+//                         break;
+//                     case 'error':
+//                         // In case of error, clear the buffer
+//                         if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.clear', event_id: "client-clear-" + Date.now() }));
+//                         break;
+//                     case 'mark':
+//                         console.log('Mark received', data.mark);
+//                         break;
+//                     default:
+//                         console.log('Received non-media event:', data.event);
+//                         break;
+//                 }
+//             } catch (error) {
+//                 console.error('Error parsing message:', error, 'Message:', message);
+//             }
+//         });
+//         // Handle connection close
+//         connection.on('close', () => {
+//             console.log('Client disconnected.');
+//             if (openAiWs && openAiWs.readyState === WebSocket.OPEN) openAiWs.close();
+//         });
+//         // Handle WebSocket close and errors - use consistent event listener pattern
+//         openAiWs.on('close', () => console.log('Disconnected from the OpenAI Realtime API'));
+//         openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
+//     });
+// });
 // Run the server!
 try {
     await fastify.listen({ port: PORT || 5050 })
