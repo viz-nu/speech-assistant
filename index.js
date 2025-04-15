@@ -162,7 +162,7 @@ fastify.register(async (fastify) => {
                         if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
                         break;
                     default:
-                        // console.log(`Received event: ${response.type}`, response);
+                        console.log(`Received event: ${response.type}`);
                         break;
                 }
                 // if (LOG_EVENT_TYPES.includes(response.type)) {
