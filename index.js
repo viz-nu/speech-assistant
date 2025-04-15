@@ -120,7 +120,13 @@ fastify.register(async (fastify) => {
             const sessionUpdate = {
                 type: 'session.update',
                 session: {
-                    turn_detection: { type: 'server_vad', interrupt_response: true },
+                    turn_detection: { 
+                        type: 'server_vad', 
+                        interrupt_response: true,
+                        threshold: 0.8,
+                        prefix_padding_ms: 300,
+                        silence_duration_ms: 1000,                  
+                     },
                     input_audio_format: 'g711_ulaw',
                     output_audio_format: 'g711_ulaw',
                     voice: VOICE,
@@ -156,7 +162,7 @@ fastify.register(async (fastify) => {
                         if (response.transcript && response.transcript.trim()) console.log('AUDIO TRANSCRIPT (complete):', response.transcript);
                         break;
                     default:
-                        console.log(`Received event: ${response.type}`, response);
+                        // console.log(`Received event: ${response.type}`, response);
                         break;
                 }
                 // if (LOG_EVENT_TYPES.includes(response.type)) {
