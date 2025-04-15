@@ -87,7 +87,7 @@ fastify.get('/', async (request, reply) => reply.send({ message: 'Twilio Media S
 fastify.all('/incoming-call', async (request, reply) => {
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
                           <Response>
-                              <Say>Hi! Please wait while we connect your call to the AVA, AI voice assistantI</Say>
+                              <Say>Hi! Thanks for calling One Window</Say>
                               <Pause length="1"/>
                               <Say>O.K. you can start talking!</Say>
                               <Connect>
@@ -117,20 +117,22 @@ fastify.register(async (fastify) => {
         // Open event for OpenAI WebSocket
         openAiWs.on('open', () => {
             console.log('Connected to the OpenAI Realtime API');
-            setTimeout(openAiWs.send(JSON.stringify({
-                type: 'session.update',
-                session: {
-                    turn_detection: { type: 'server_vad', interrupt_response: true },
-                    input_audio_transcription: { model: "whisper" },
-                    input_audio_format: 'g711_ulaw',
-                    output_audio_format: 'g711_ulaw',
-                    voice: VOICE,
-                    instructions: SYSTEM_MESSAGE,
-                    modalities: ["text", "audio"],
-                    temperature: TEMPERATURE,
-                    max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
-                }
-            })), 250); // Ensure connection stability, send after .25 seconds
+            setTimeout(() => {
+                openAiWs.send(JSON.stringify({
+                    type: 'session.update',
+                    session: {
+                        turn_detection: { type: 'server_vad', interrupt_response: true },
+                        input_audio_transcription: { model: "whisper" },
+                        input_audio_format: 'g711_ulaw',
+                        output_audio_format: 'g711_ulaw',
+                        voice: VOICE,
+                        instructions: SYSTEM_MESSAGE,
+                        modalities: ["text", "audio"],
+                        temperature: TEMPERATURE,
+                        max_response_output_tokens: MAX_RESPONSE_OUTPUT_TOKENS
+                    }
+                }));
+            }, 250);// Ensure connection stability, send after .25 seconds
         });
         // Listen for messages from the OpenAI WebSocket (and send to Twilio if necessary)
         openAiWs.on('message', (data) => {
