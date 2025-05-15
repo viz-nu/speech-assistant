@@ -20,3 +20,29 @@ start event: Captures the stream's unique ID (streamSid).
 media event: media event: Processes and forwards audio data payloads from the ongoing call to OpenAI.
 response.audio.delta: Handles AI-generated audio data from OpenAI, re-encodes it, and sends it to Twilio.
 Twilio WebSocket close event: Handles client disconnection and closes streams.
+
+
+
+// Anthropic Claude API
+
+// REST API endpoint: https://api.anthropic.com/v1/messages
+// Supports streaming responses
+// Models: claude-3-7-sonnet-20250219, claude-3-opus-20240229, claude-3-5-haiku-20241022
+
+
+// Google Gemini API
+
+// Supports streaming responses
+// Models: gemini-pro, gemini-ultra
+
+
+// Cohere API
+
+// Supports streaming
+// Models: command, command-light
+
+
+// Hugging Face Inference API
+
+// Various open-source models
+// Supports streaming for certain models

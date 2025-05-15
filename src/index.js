@@ -6,6 +6,17 @@ let { OPEN_API_KEY, PORT,
 } = process.env;
 const VOICE = 'ash';
 // Clean protocols and slashes
+const webClients = new Set();
+
+const broadcastToWebClients = (payload) => {
+    const message = JSON.stringify(payload);
+    for (const client of webClients) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    }
+};
+
 const SYSTEM_MESSAGE = `You are AVA, a skilled, friendly student advisor at **One Window**, a trusted consultancy that helps students unlock global higher education opportunities. You are a persuasive guide, motivator, and problem-solver — your goal is to help students confidently take the next step toward their academic and career dreams.
 ### Core Objectives:
 1. **Understand Student Needs:**
@@ -142,34 +153,6 @@ fastify.register(async (fastify) => {
                 "OpenAI-Beta": "realtime=v1"
             }
         });
-
-
-
-// Anthropic Claude API
-
-// REST API endpoint: https://api.anthropic.com/v1/messages
-// Supports streaming responses
-// Models: claude-3-7-sonnet-20250219, claude-3-opus-20240229, claude-3-5-haiku-20241022
-
-
-// Google Gemini API
-
-// Supports streaming responses
-// Models: gemini-pro, gemini-ultra
-
-
-// Cohere API
-
-// Supports streaming
-// Models: command, command-light
-
-
-// Hugging Face Inference API
-
-// Various open-source models
-// Supports streaming for certain models
-
-
         let streamSid = null;
         // let isModelSpeaking = false;
         const sendInitialSessionUpdate = () => {
@@ -207,6 +190,7 @@ fastify.register(async (fastify) => {
                     ]
                 }
             };
+            broadcastToWebClients({ type: 'ava_response', text: "Hello this is AVA, I am here you help you with your abroad education journey" });
             openAiWs.send(JSON.stringify(initialConversationItem));
             openAiWs.send(JSON.stringify({ type: 'response.create' }));
         };
@@ -221,10 +205,18 @@ fastify.register(async (fastify) => {
                 const response = JSON.parse(data);
                 switch (response.type) {
                     case 'conversation.item.input_audio_transcription.completed':
-                        if (response.transcript.trim()) { console.log('USER SAID (complete):'); console.dir(response.transcript); }
+                        if (response.transcript.trim()) {
+                            console.log('USER SAID (complete):'); 
+                            console.dir(response.transcript);
+                            broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
+                        }
                         break;
                     case 'response.audio_transcript.done':
-                        if (response.transcript.trim()) { console.log('AUDIO TRANSCRIPT (complete):'); console.dir(response.transcript); }
+                        if (response.transcript.trim()) { 
+                            console.log('AUDIO TRANSCRIPT (complete):'); 
+                            console.dir(response.transcript);
+                            broadcastToWebClients({ type: 'ava_response', text: response.transcript });
+                         }
                         // isModelSpeaking = false;
                         break;
                     case 'response.audio.delta':
@@ -254,6 +246,7 @@ fastify.register(async (fastify) => {
 
                     case 'response.completed':
                         console.log('Response completed');
+                        broadcastToWebClients({ type: 'ava_done' });
                         // isModelSpeaking = false;
                         break;
                     default:
@@ -307,7 +300,30 @@ fastify.register(async (fastify) => {
             console.error('Error in the OpenAI WebSocket:', error);
         });
     });
+    // ✅ New client WebSocket route
+    fastify.get('/ws/client', { websocket: true }, (clientSocket, req) => {
+        console.log('Client UI connected');
+        webClients.add(clientSocket);
+        clientSocket.on('close', () => {
+            webClients.delete(clientSocket);
+            console.log('Client UI disconnected');
+        });
+    });
 });
+
+// Start the server
+const start = async () => {
+    try {
+        await fastify.listen({ port: PORT, host: '0.0.0.0' });
+        console.log(`Worker ${process.pid} listening on port ${PORT}`);
+    } catch (err) {
+        fastify.log.error(err);
+        process.exit(1);
+    }
+};
+
+start();
+
 
 // Graceful shutdown
 // const signals = ['SIGINT', 'SIGTERM'];
@@ -323,16 +339,3 @@ fastify.register(async (fastify) => {
 //         }
 //     });
 // });
-
-// Start the server
-const start = async () => {
-    try {
-        await fastify.listen({ port: PORT, host: '0.0.0.0' });
-        console.log(`Worker ${process.pid} listening on port ${PORT}`);
-    } catch (err) {
-        fastify.log.error(err);
-        process.exit(1);
-    }
-};
-
-start();
