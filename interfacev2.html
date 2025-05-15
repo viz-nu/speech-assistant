@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,7 +29,7 @@
             background-color: #2d3748;
             color: white;
             padding: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .header-content {
@@ -79,9 +80,11 @@
             0% {
                 opacity: 1;
             }
+
             50% {
                 opacity: 0.5;
             }
+
             100% {
                 opacity: 1;
             }
@@ -99,7 +102,7 @@
         .container {
             background-color: white;
             border-radius: 0.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             padding: 2rem;
             margin-bottom: 2rem;
         }
@@ -338,6 +341,7 @@
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="header-content">
@@ -357,15 +361,8 @@
             <form id="callForm" onsubmit="initiateCall(event)">
                 <div class="form-group">
                     <label for="phoneNumber">Phone Number</label>
-                    <input 
-                        type="tel" 
-                        id="phoneNumber" 
-                        name="phoneNumber" 
-                        placeholder="+1 (123) 456-7890"
-                        pattern="[+]?[0-9]{10,15}"
-                        title="Please enter a valid phone number"
-                        required
-                    >
+                    <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="+1 (123) 456-7890"
+                        pattern="[+]?[0-9]{10,15}" title="Please enter a valid phone number" required>
                     <div class="input-hint">Enter phone number with country code (e.g., +1 for US)</div>
                 </div>
                 <button type="submit" id="callBtn" disabled>
@@ -398,9 +395,7 @@
     <script>
         // Base URL for the API
         const API_BASE_URL = 'https://speech.campusroot.com';
-        const WS_BASE_URL = 'wss://speech.campusroot.com';
-        
-        // WebSocket connection
+        const WS_BASE_URL = 'wss://speech.campusroot.com/ws/client';
         let socket = null;
         let isConnected = false;
         let currentCallActive = false;
@@ -410,170 +405,166 @@
             const statusBadge = document.getElementById('statusBadge');
             const connectionStatus = document.getElementById('connectionStatus');
             const callBtn = document.getElementById('callBtn');
-            
+
+            console.log('[WebSocket] Attempting connection...');
             statusBadge.textContent = 'Connecting...';
             statusBadge.className = 'status-badge connecting';
-            
-            // Create WebSocket connection
-            socket = new WebSocket(WS_BASE_URL);
-            
-            socket.onopen = function(event) {
-                console.log('WebSocket connected');
+
+            try {
+                socket = new WebSocket(WS_BASE_URL);
+            } catch (error) {
+                console.error('[WebSocket] Failed to create connection:', error);
+                updateConnectionStatus(false);
+                return;
+            }
+
+            socket.onopen = () => {
+                console.log('[WebSocket] Connected');
                 isConnected = true;
-                
-                // Update UI
-                statusBadge.textContent = 'Online';
-                statusBadge.className = 'status-badge online';
-                connectionStatus.className = 'connection-status connected';
-                connectionStatus.textContent = 'Connected to server';
-                callBtn.disabled = false;
-                
-                // Check health status on connection
+                updateConnectionStatus(true);
                 checkHealth();
             };
-            
-            socket.onerror = function(error) {
-                console.error('WebSocket error:', error);
+
+            socket.onerror = (error) => {
+                console.error('[WebSocket] Error occurred:', error);
                 updateConnectionStatus(false);
             };
-            
-            socket.onclose = function(event) {
-                console.log('WebSocket disconnected');
+
+            socket.onclose = (event) => {
+                console.warn('[WebSocket] Connection closed. Code:', event.code, 'Reason:', event.reason);
                 isConnected = false;
                 updateConnectionStatus(false);
-                
-                // Attempt to reconnect after 5 seconds
+
+                console.log('[WebSocket] Reconnecting in 5 seconds...');
                 setTimeout(initializeWebSocket, 5000);
             };
-            
-            socket.onmessage = function(event) {
+
+            socket.onmessage = (event) => {
+                console.log('[WebSocket] Message received:', event.data);
                 const data = JSON.parse(event.data);
                 handleSocketMessage(data);
             };
         }
 
-        // Update connection status UI
+        // Update UI connection state
         function updateConnectionStatus(connected) {
             const statusBadge = document.getElementById('statusBadge');
             const connectionStatus = document.getElementById('connectionStatus');
             const callBtn = document.getElementById('callBtn');
-            
+
             if (connected) {
                 statusBadge.textContent = 'Online';
                 statusBadge.className = 'status-badge online';
-                connectionStatus.className = 'connection-status connected';
                 connectionStatus.textContent = 'Connected to server';
+                connectionStatus.className = 'connection-status connected';
                 callBtn.disabled = false;
             } else {
                 statusBadge.textContent = 'Offline';
                 statusBadge.className = 'status-badge';
-                connectionStatus.className = 'connection-status disconnected';
                 connectionStatus.textContent = 'Disconnected from server';
+                connectionStatus.className = 'connection-status disconnected';
                 callBtn.disabled = true;
             }
+
+            console.log(`[UI] Connection status updated: ${connected ? 'Connected' : 'Disconnected'}`);
         }
 
-        // Handle incoming socket messages
+        // Handle all incoming socket messages
         function handleSocketMessage(data) {
-            switch(data.type) {
-                case 'transcript':
-                    handleTranscript(data);
+            //   {"type":"user_transcript","text":"Cool, I love the way you speak and I'm testing right now. So I hope this is working good\n"}
+            //  {"type":"ava_response","text":"Thank you for the kind words! I'm glad you like it. It sounds like everything is working well on your end. How can I assist you with your educational journey today?"}
+            switch (data.type) {
+                case 'user_transcript':
+                    console.log('[Handler] Handling user transcript...');
+                    handleTranscript({ message: data.text, speaker: 'user' });
+                    break;
+                case 'ava_response':
+                    console.log('[Handler] Handling assistant response...');
+                    handleTranscript({ message: data.text, speaker: 'assistant' });
                     break;
                 case 'clientConnected':
+                    console.log('[Handler] Client connected:', data.clientId);
                     handleClientConnected(data);
                     break;
                 case 'clientDisconnected':
+                    console.log('[Handler] Client disconnected:', data.clientId);
                     handleClientDisconnected(data);
                     break;
                 case 'callStatus':
+                    console.log('[Handler] Call status updated:', data.status);
                     handleCallStatus(data);
                     break;
                 default:
-                    console.log('Unknown message type:', data.type);
+                    console.warn('[Handler] Unknown message type:', data.type);
             }
         }
 
-        // Handle transcript messages
         function handleTranscript(data) {
             const transcriptContainer = document.getElementById('transcriptContainer');
             const transcriptMessages = document.getElementById('transcriptMessages');
-            
-            // Show transcript container
+
             transcriptContainer.classList.add('active');
-            
-            // Create message element
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `transcript-message ${data.speaker}`;
-            
+
             const speakerDiv = document.createElement('div');
             speakerDiv.className = 'speaker';
             speakerDiv.textContent = data.speaker.charAt(0).toUpperCase() + data.speaker.slice(1);
-            
+
             const messageContent = document.createElement('div');
             messageContent.className = 'message';
             messageContent.textContent = data.message;
-            
+
             const timestamp = document.createElement('div');
             timestamp.className = 'timestamp';
             timestamp.textContent = new Date().toLocaleTimeString();
-            
+
             messageDiv.appendChild(speakerDiv);
             messageDiv.appendChild(messageContent);
             messageDiv.appendChild(timestamp);
-            
             transcriptMessages.appendChild(messageDiv);
-            
-            // Scroll to bottom
             transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
+
+            console.log('[Transcript] Message appended:', data);
         }
 
-        // Handle client connected event
         function handleClientConnected(data) {
-            console.log('Client connected:', data.clientId);
             updateConnectionStatus(true);
         }
 
-        // Handle client disconnected event
         function handleClientDisconnected(data) {
-            console.log('Client disconnected:', data.clientId);
             if (currentCallActive) {
+                console.log('[Call] Call was active, now ending due to disconnection.');
                 endCall();
             }
         }
 
-        // Handle call status updates
         function handleCallStatus(data) {
             const callStatus = document.getElementById('callStatus');
-            
-            if (data.status === 'active') {
-                currentCallActive = true;
+            currentCallActive = data.status === 'active';
+
+            if (currentCallActive) {
                 callStatus.classList.add('active');
             } else {
-                currentCallActive = false;
                 callStatus.classList.remove('active');
             }
         }
 
-        // Check system health
         async function checkHealth() {
+            console.log('[Health] Performing system health check...');
             try {
                 const response = await fetch(`${API_BASE_URL}/health`);
                 const data = await response.json();
-                
-                if (data.status === 'ok') {
-                    updateConnectionStatus(true);
-                    console.log('System health check passed');
-                } else {
-                    updateConnectionStatus(false);
-                    console.log('System health check failed');
-                }
+                console.log('[Health] Response:', data);
+
+                updateConnectionStatus(data.status === 'ok');
             } catch (error) {
-                console.error('Health check error:', error);
+                console.error('[Health] Error:', error);
                 updateConnectionStatus(false);
             }
         }
 
-        // Initiate call
         async function initiateCall(event) {
             event.preventDefault();
 
@@ -581,74 +572,80 @@
             const btn = document.getElementById('callBtn');
             const callStatus = document.getElementById('callStatus');
 
-            // Update button state
+            if (!phoneNumber.trim()) {
+                alert('Please enter a phone number');
+                return;
+            }
+
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span><span>Initiating...</span>';
+
+            console.log('[Call] Initiating call to:', phoneNumber);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/call`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        phoneNumber: phoneNumber
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber })
                 });
 
                 const data = await response.json();
+                console.log('[Call] API Response:', data);
 
                 if (data.success) {
-                    // Show call status
                     currentCallActive = true;
                     callStatus.classList.add('active');
-                    
-                    // Clear transcript
+
                     document.getElementById('transcriptMessages').innerHTML = '';
                     document.getElementById('transcriptContainer').classList.add('active');
-                    
-                    // Update button to end call
+
                     btn.innerHTML = '<span>End Call</span>';
                     btn.style.backgroundColor = '#e53e3e';
                     btn.onclick = endCall;
                     btn.disabled = false;
                 } else {
-                    throw new Error(data.message || 'Failed to initiate call');
+                    throw new Error(data.message || 'Call initiation failed');
                 }
             } catch (error) {
-                alert('Error initiating call: ' + error.message);
-                // Reset button state
+                console.error('[Call] Error initiating call:', error);
+                alert('Error: ' + error.message);
                 btn.disabled = false;
                 btn.innerHTML = '<span>Initiate Call</span>';
             }
         }
 
-        // End call
         function endCall() {
             const btn = document.getElementById('callBtn');
             const callStatus = document.getElementById('callStatus');
-            
-            // Update UI
+
             currentCallActive = false;
             callStatus.classList.remove('active');
-            
-            // Reset button
+
             btn.innerHTML = '<span>Initiate Call</span>';
             btn.style.backgroundColor = '#3182ce';
-            btn.onclick = null;
-            
-            // Send end call message via socket
+            btn.onclick = initiateCall;
+
+            console.log('[Call] Ending call...');
+
             if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({
-                    type: 'endCall'
-                }));
+                socket.send(JSON.stringify({ type: 'endCall' }));
+                console.log('[WebSocket] Sent endCall signal.');
+            } else {
+                console.warn('[WebSocket] Cannot send endCall: socket not open.');
             }
         }
 
-        // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
+            console.log('[Init] Page loaded, initializing WebSocket...');
             initializeWebSocket();
+
+            const callBtn = document.getElementById('callBtn');
+            if (callBtn) {
+                callBtn.onclick = initiateCall;
+            }
         });
+
     </script>
 </body>
+
 </html>
