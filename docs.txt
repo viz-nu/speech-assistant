@@ -1,0 +1,22 @@
+As you can see, first we set up a WebSocket route (/media-stream) to handle media streaming between Twilio and OpenAI. This is the route we referenced in our TwiML, above. The next two areas require more explanation.
+
+Set up the OpenAI Realtime API Session and Conversation
+Next, we set up our Session configuration with OpenAI. This configuration is sent to the OpenAI WebSocket as a JSON object after the connection opens, after a slight delay. We use the sendSessionUpdate() function to define how the AI interacts and responds. You can read more about the options I chose in the OpenAI Realtime API documentation.
+
+The sendSessionUpdate function also configures the OpenAI session attributes:
+
+turn_detection: Enables server-side Voice Activity Detection (VAD).
+input_audio_format / output_audio_format: Specifies audio formats, which we changed to g711_ulaw due to Twilio requirements.
+voice: Sets the AI voice to 'alloy' (or however you set the constant).
+instructions: Influences AI interaction using SYSTEM_MESSAGE.
+modalities: Enables both text and audio communication.
+temperature: Controls randomness in AI responses.
+Proxy between the Twilio and OpenAI WebSockets
+The following lines proxy audio data (using Twilio-supported G.711 u-law format) between the Twilio Media Stream and OpenAI Realtime AI WebSocket connections. When the call starts, this is where the caller's voice is processed, and the AI-generated audio is streamed back.
+
+Here's a detailed walkthrough of how we are proxying between OpenAI Realtime and Twilio:
+
+start event: Captures the stream's unique ID (streamSid).
+media event: media event: Processes and forwards audio data payloads from the ongoing call to OpenAI.
+response.audio.delta: Handles AI-generated audio data from OpenAI, re-encodes it, and sends it to Twilio.
+Twilio WebSocket close event: Handles client disconnection and closes streams.
