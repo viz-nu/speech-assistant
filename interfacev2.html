@@ -524,7 +524,10 @@
             messageDiv.appendChild(messageContent);
             messageDiv.appendChild(timestamp);
             transcriptMessages.appendChild(messageDiv);
-            transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
+            // Scroll to bottom after DOM update
+            setTimeout(() => {
+                transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
+            }, 0);
 
             console.log('[Transcript] Message appended:', data);
         }

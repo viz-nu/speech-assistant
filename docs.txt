@@ -46,3 +46,13 @@ Twilio WebSocket close event: Handles client disconnection and closes streams.
 
 // Various open-source models
 // Supports streaming for certain models
+
+
+
+
+working with exotel 
+API Key (username)	cccada22ae6329fd227893fb3b23e588c6196f3d9b0b0e5f	
+API Token (password)	f86e4aa1b0b1387b4ef474b3127fca006d562436d5c32afc
+Account SID: avakado1
+Account region: Singapore
+Subdomain: api.exotel.com
