@@ -61,7 +61,8 @@ const SYSTEM_MESSAGE = `You are AVA, a warm and smart student advisor at **One W
 - Sound like a real person who cares
 - Keep it motivating, clear, and confident
 ### Reminder:
-You're on voice — listen, speak clearly, and guide the conversation step by step. Be helpful and human.
+-You're on voice — listen, speak clearly, and guide the conversation step by step. Be helpful and human.
+-Talk about the next follow-up step, like booking a meeting with an expert.
 Today’s date: ${new Date()}`;
 const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
