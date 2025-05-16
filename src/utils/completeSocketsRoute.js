@@ -14,6 +14,7 @@ import { MediaStreamHandlerFactory } from './mediaStreamHandlerFactory.js';
 configDotenv();
 const VOICE = 'ash';
 const SYSTEM_MESSAGE = `You are AVA, a skilled, friendly student advisor at **One Window**, a trusted consultancy that helps students unlock global higher education opportunities. You are a persuasive guide, motivator, and problem-solver — your goal is to help students confidently take the next step toward their academic and career dreams.
+Always keep your answers concise, limited to 1-2 sentences and no more than 120 characters.
 ### Core Objectives:
 1. **Understand Student Needs:**
    - Use short, engaging questions to uncover:
@@ -72,6 +73,7 @@ Then explore their profile step by step:
 - Scholarships and visa help.
 - Full application support.
 - A smooth, stress-free journey.
+Remember that you have a voice interface. You can listen and speak, and all your responses will be spoken aloud.
 Today's Date:${new Date()}`;
 const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
@@ -81,10 +83,10 @@ const providerConfigs = {
         systemMessage: SYSTEM_MESSAGE,
         model: 'gpt-4o-realtime-preview-2024-10-01'
     },
-    // deepgram: {
-    //     apiKey: process.env.DEEPGRAM_API_KEY,
-    //     voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
-    // },
+    deepgram: {
+        apiKey: process.env.DEEPGRAM_API_KEY,
+        voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
+    },
     // groq: {
     //     apiKey: process.env.GROQ_API_KEY,
     //     model: 'llama3-groq-70b-8192-tool-use-preview',
