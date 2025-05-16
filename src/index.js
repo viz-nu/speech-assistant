@@ -13,7 +13,7 @@ import fastifyCors from '@fastify/cors';
 import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import { makeCallUsingTwilio } from './utils/twillio.js';
-import { setupWebSocketRoutes } from './utils/completeSocketsRoute.js';
+import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 // Initialize Fastify
 // NODE_ENV === 'production' ? 'info' :"debug"
 const fastify = Fastify({ logger: { level: "info" } });
