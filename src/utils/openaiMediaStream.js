@@ -1,5 +1,7 @@
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
+import { analyzeConversation } from './openAi.js';
+const conversation = []
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
         super(config);
@@ -16,7 +18,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.log('Connected to the OpenAI Realtime API');
             setTimeout(() => this.sendInitialSessionUpdate(), 250); // Ensure connection stability, send after .250 second
         });
-        this.openAiWs.on('message', (data) => this.handleOpenAIMessage(data));
+        this.openAiWs.on('message', async (data) => await this.handleOpenAIMessage(data));
         this.openAiWs.on('close', () => console.log('Disconnected from the OpenAI Realtime API'));
         this.openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
     }
@@ -60,7 +62,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.openAiWs.send(JSON.stringify({ type: 'response.create' }));
     }
 
-    handleOpenAIMessage(data) {
+    async handleOpenAIMessage(data) {
         try {
             const response = JSON.parse(data);
             switch (response.type) {
@@ -68,6 +70,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     if (response.transcript.trim()) {
                         console.log('USER SAID (complete):');
                         console.dir(response.transcript);
+                        conversation.push({ role: 'user', content: response.transcript })
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
                     }
                     break;
@@ -76,6 +79,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     if (response.transcript.trim()) {
                         console.log('AUDIO TRANSCRIPT (complete):');
                         console.dir(response.transcript);
+                        conversation.push({ role: 'assistant', content: response.transcript })
                         this.broadcastToWebClients({ type: 'ava_response', text: response.transcript });
                     }
                     break;
@@ -110,7 +114,8 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
 
                 case 'response.completed':
                     console.log('Response completed');
-                    this.broadcastToWebClients({ type: 'ava_done' });
+                    const summary = await analyzeConversation(conversation, this.OPEN_API_KEY)
+                    this.broadcastToWebClients(JSON.stringify({ type: 'ava_done', data: summary }))
                     break;
 
                 default:
