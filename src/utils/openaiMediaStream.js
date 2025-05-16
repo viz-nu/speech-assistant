@@ -1,4 +1,4 @@
-import { BaseMediaStreamHandler } from './baseMediaStreamHandler.js';
+import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {

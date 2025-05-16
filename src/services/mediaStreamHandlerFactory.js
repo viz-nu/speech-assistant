@@ -2,7 +2,7 @@
 // const DeepgramMediaStreamHandler = require('./deepgramMediaStream');
 // const GroqMediaStreamHandler = require('./groqMediaStream');
 
-import { OpenAIMediaStreamHandler } from "./openaiMediaStream.js";
+import { OpenAIMediaStreamHandler } from "../utils/openaiMediaStream.js";
 
 export class MediaStreamHandlerFactory {
     static create(provider, config) {

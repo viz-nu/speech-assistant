@@ -12,7 +12,7 @@ import Fastify from 'fastify';
 import fastifyCors from '@fastify/cors';
 import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
-import { makeCall } from './utils/twillio.js';
+import { makeCallUsingTwilio } from './utils/twillio.js';
 import { setupWebSocketRoutes } from './utils/completeSocketsRoute.js';
 // Initialize Fastify
 // NODE_ENV === 'production' ? 'info' :"debug"
@@ -30,7 +30,8 @@ fastify.post('/call', async (request, reply) => {
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
         // Make the call
-        const result = await makeCall(phoneNumber);
+        const result = await makeCallUsingTwilio(phoneNumber);
+        // const result = await makeCallUsingExotel(phoneNumber);
         return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: result });
     } catch (error) {
         fastify.log.error(error);
