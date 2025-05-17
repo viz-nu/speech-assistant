@@ -1,7 +1,7 @@
 import { configDotenv } from 'dotenv';
 configDotenv();
 let {
-    // OPEN_API_KEY, 
+    OPEN_API_KEY,
     PORT,
     NODE_ENV = 'development', // 'production'
 } = process.env;
@@ -14,6 +14,7 @@ import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import { makeCallUsingTwilio } from './utils/twillio.js';
 import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
+import { analyzeConversation } from './utils/openAi.js';
 // Initialize Fastify
 // NODE_ENV === 'production' ? 'info' :"debug"
 const fastify = Fastify({ logger: { level: "info" } });
@@ -62,6 +63,17 @@ fastify.get('/call/:phoneNumber', async (request, reply) => {
         });
     }
 });
+fastify.get('/call-summary ', async (request, reply) => {
+    try {
+        const { conversation } = request.query;
+        const summary = await analyzeConversation(conversation, OPEN_API_KEY);
+        return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
+    } catch (error) {
+        fastify.log.error(error);
+        return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
+    }
+}
+);
 fastify.all('/incoming-call', async (request, reply) => {
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
                           <Response>

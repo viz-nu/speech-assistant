@@ -1,12 +1,12 @@
 // Function to broadcast to web clients
 export const webClients = new Set();
 export const broadcastToWebClients = (payload) => {
-    const message = JSON.stringify(payload);
-    for (const client of webClients) {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(message);
-        }
+  const message = JSON.stringify(payload);
+  for (const client of webClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
     }
+  }
 };
 // Configuration
 import { configDotenv } from 'dotenv';
@@ -66,50 +66,60 @@ const SYSTEM_MESSAGE = `You are AVA, a warm and smart student advisor at **One W
 Today’s date: ${new Date()}`;
 const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
-    openai: {
-        apiKey: process.env.OPEN_API_KEY,
-        voice: VOICE || 'echo',
-        systemMessage: SYSTEM_MESSAGE,
-        model: 'gpt-4o-realtime-preview-2024-10-01'
-    },
-    deepgram: {
-        apiKey: process.env.DEEPGRAM_API_KEY,
-        voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
-    },
-    // groq: {
-    //     apiKey: process.env.GROQ_API_KEY,
-    //     model: 'llama3-groq-70b-8192-tool-use-preview',
-    //     systemMessage: SYSTEM_MESSAGE
-    // }
+  openai: {
+    apiKey: process.env.OPEN_API_KEY,
+    voice: VOICE || 'echo',
+    systemMessage: SYSTEM_MESSAGE,
+    model: 'gpt-4o-realtime-preview-2024-10-01'
+  },
+  deepgram: {
+    apiKey: process.env.DEEPGRAM_API_KEY,
+    voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
+  },
+  // groq: {
+  //     apiKey: process.env.GROQ_API_KEY,
+  //     model: 'llama3-groq-70b-8192-tool-use-preview',
+  //     systemMessage: SYSTEM_MESSAGE
+  // }
 };
 export function setupWebSocketRoutes(fastify) {
-    fastify.register(async (fastify) => {
-        // Setup WebSocket server for handling media streams
-        fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
-            console.log(`Client connected using ${PROVIDER} provider`);
-            // Create handler based on selected provider
-            const handler = MediaStreamHandlerFactory.create(PROVIDER, providerConfigs[PROVIDER]);
-            // Set up broadcasting function
-            handler.setBroadcastFunction(broadcastToWebClients);
-            try {
-                // Connect to the provider
-                await handler.connect(connection);
-                // Handle incoming messages from Twilio/client
-                connection.on('message', async (message) => await handler.handleIncomingMessage(message));
-                // Handle connection close
-                connection.on('close', async () => await handler.disconnect());
-            } catch (error) {
-                console.error(`Error setting up ${PROVIDER} handler:`, error);
-                connection.close();
-            }
-        });
+  fastify.register(async (fastify) => {
+    // Setup WebSocket server for handling media streams
+    fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
+      console.log(`Client connected using ${PROVIDER} provider`);
+      // Create handler based on selected provider
+      const handler = MediaStreamHandlerFactory.create(PROVIDER, providerConfigs[PROVIDER]);
+      // Set up broadcasting function
+      handler.setBroadcastFunction(broadcastToWebClients);
+      try {
+        // Connect to the provider
+        await handler.connect(connection);
+        handler.broadcastToWebClients({ type: 'clientConnected', text: "Client connected" });
+        // Handle incoming messages from Twilio/client
+        connection.on('message', (message) => handler.handleIncomingMessage(message));
+        // Handle connection close
+        handler.broadcastToWebClients({ type: 'callStatus', status: "active" });
+        connection.on('close', () => {
+          handler.disconnect()
+          handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
+          handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Client disconnected" });
 
-        // ✅ New client WebSocket route
-        fastify.get('/ws/client', { websocket: true }, (clientSocket, req) => {
-            console.log('Client UI connected');
-            webClients.add(clientSocket);
-            clientSocket.on('close', () => { webClients.delete(clientSocket); console.log('Client UI disconnected'); });
-            clientSocket.on('error', (error) => { console.error('Client UI error:', error); webClients.delete(clientSocket); });
         });
+      } catch (error) {
+        console.error(`Error setting up ${PROVIDER} handler:`, error);
+        connection.close();
+        handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
+        handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Client disconnected" });
+
+      }
     });
+
+    // ✅ New client WebSocket route
+    fastify.get('/ws/client', { websocket: true }, (clientSocket, req) => {
+      console.log('Client UI connected');
+      webClients.add(clientSocket);
+      clientSocket.on('close', () => { webClients.delete(clientSocket); console.log('Client UI disconnected'); });
+      clientSocket.on('error', (error) => { console.error('Client UI error:', error); webClients.delete(clientSocket); });
+    });
+  });
 }

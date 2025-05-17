@@ -494,6 +494,10 @@
                     console.log('[Handler] Call status updated:', data.status);
                     handleCallStatus(data);
                     break;
+                case 'ava_done':
+                    console.log('[Handler] AVA done calling now gathering conclusions', data);
+                    
+                    break;
                 default:
                     console.warn('[Handler] Unknown message type:', data.type);
             }

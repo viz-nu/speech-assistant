@@ -1,6 +1,5 @@
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
-import { analyzeConversation } from './openAi.js';
 const conversation = []
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
@@ -114,8 +113,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
 
                 case 'response.completed':
                     console.log('Response completed');
-                    const summary = await analyzeConversation(conversation, this.OPEN_API_KEY)
-                    this.broadcastToWebClients(JSON.stringify({ type: 'ava_done', data: summary }))
+                    this.broadcastToWebClients(JSON.stringify({ type: 'ava_done' }))
                     break;
 
                 default:
@@ -143,7 +141,12 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
 
                 case 'start':
                     this.streamSid = data.start.streamSid;
-                    console.log('Incoming stream has started', this.streamSid);
+                    console.log('user attended the call', this.streamSid);
+                    break;
+
+                case 'stop':
+                    this.streamSid = data.start.streamSid;
+                    console.log('user disconnected the call', this.streamSid);
                     break;
 
                 default:
@@ -155,7 +158,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         }
     }
 
-    async disconnect() {
+    disconnect() {
         if (this.openAiWs && this.openAiWs.readyState === WebSocket.OPEN) {
             this.openAiWs.close();
         }
