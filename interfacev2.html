@@ -434,7 +434,6 @@
                 console.warn('[WebSocket] Connection closed. Code:', event.code, 'Reason:', event.reason);
                 isConnected = false;
                 updateConnectionStatus(false);
-
                 console.log('[WebSocket] Reconnecting in 5 seconds...');
                 setTimeout(initializeWebSocket, 5000);
             };
@@ -475,11 +474,9 @@
             //  {"type":"ava_response","text":"Thank you for the kind words! I'm glad you like it. It sounds like everything is working well on your end. How can I assist you with your educational journey today?"}
             switch (data.type) {
                 case 'user_transcript':
-                    console.log('[Handler] Handling user transcript...');
                     handleTranscript({ message: data.text, speaker: 'user' });
                     break;
                 case 'ava_response':
-                    console.log('[Handler] Handling assistant response...');
                     handleTranscript({ message: data.text, speaker: 'assistant' });
                     break;
                 case 'clientConnected':
@@ -496,7 +493,6 @@
                     break;
                 case 'ava_done':
                     console.log('[Handler] AVA done calling now gathering conclusions', data);
-                    
                     break;
                 default:
                     console.warn('[Handler] Unknown message type:', data.type);
@@ -532,8 +528,6 @@
             setTimeout(() => {
                 transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
             }, 0);
-
-            console.log('[Transcript] Message appended:', data);
         }
 
         function handleClientConnected(data) {

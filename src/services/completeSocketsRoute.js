@@ -118,8 +118,26 @@ export function setupWebSocketRoutes(fastify) {
     fastify.get('/ws/client', { websocket: true }, (clientSocket, req) => {
       console.log('Client UI connected');
       webClients.add(clientSocket);
-      clientSocket.on('close', () => { webClients.delete(clientSocket); console.log('Client UI disconnected'); });
-      clientSocket.on('error', (error) => { console.error('Client UI error:', error); webClients.delete(clientSocket); });
+      // 🫀 Start heartbeat
+      const pingInterval = setInterval(() => {
+        if (clientSocket.readyState === clientSocket.OPEN) {
+          clientSocket.ping(); // This keeps the connection alive
+        }
+      }, 30000); // every 30s
+
+      // 🧹 Cleanup on close
+      clientSocket.on('close', () => {
+        clearInterval(pingInterval);
+        webClients.delete(clientSocket);
+        console.log('Client UI disconnected');
+      });
+
+      clientSocket.on('error', (error) => {
+        clearInterval(pingInterval);
+        console.error('Client UI error:', error);
+        webClients.delete(clientSocket);
+      });
+
     });
   });
 }
