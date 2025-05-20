@@ -17,7 +17,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.log('Connected to the OpenAI Realtime API');
             setTimeout(() => this.sendInitialSessionUpdate(), 250); // Ensure connection stability, send after .250 second
         });
-        this.openAiWs.on('message', async (data) => await this.handleOpenAIMessage(data));
+        this.openAiWs.on('message', (data) => this.handleOpenAIMessage(data));
         this.openAiWs.on('close', () => console.log('Disconnected from the OpenAI Realtime API'));
         this.openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
     }
@@ -61,7 +61,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.openAiWs.send(JSON.stringify({ type: 'response.create' }));
     }
 
-    async handleOpenAIMessage(data) {
+    handleOpenAIMessage(data) {
         try {
             const response = JSON.parse(data);
             switch (response.type) {
@@ -125,16 +125,13 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         }
     }
 
-    async handleIncomingMessage(message) {
+    handleIncomingMessage(message) {
         try {
             const data = JSON.parse(message);
             switch (data.event) {
                 case 'media':
                     if (this.openAiWs.readyState === WebSocket.OPEN) {
-                        const audioAppend = {
-                            type: 'input_audio_buffer.append',
-                            audio: data.media.payload
-                        };
+                        const audioAppend = { type: 'input_audio_buffer.append', audio: data.media.payload };
                         this.openAiWs.send(JSON.stringify(audioAppend));
                     }
                     break;
@@ -145,14 +142,23 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
 
                 case 'stop':
-                    this.streamSid = data.start.streamSid;
-                    console.log('user disconnected the call', this.streamSid);
+                    console.log('user disconnected the call');
                     break;
 
                 default:
                     console.log('Received non-media event:', data.event);
                     break;
+// Connected
+// Start
+// Media
+// DTMF
+// Stop
+
+
+
             }
+
+
         } catch (error) {
             console.error('Error parsing message:', error, 'Message:', message);
         }

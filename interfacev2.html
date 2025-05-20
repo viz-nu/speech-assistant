@@ -365,6 +365,27 @@
                         pattern="[+]?[0-9]{10,15}" title="Please enter a valid phone number" required>
                     <div class="input-hint">Enter phone number with country code (e.g., +1 for US)</div>
                 </div>
+                <div class="form-group">
+                    <label for="systemMessage">System Message (optional)</label>
+                    <textarea id="systemMessage" name="systemMessage"
+                        placeholder="Enter a custom system message for this call" rows="3"
+                        style="width:100%;"></textarea>
+                    <div class="input-hint">This message will guide the assistant's behavior for this call.</div>
+                </div>
+                <div class="form-group">
+                    <label for="voice">Voice</label>
+                    <select id="voice" name="voice" style="width:100%;">
+                        <option value="alloy">Alloy</option>
+                        <option value="ash" selected>Ash</option>
+                        <option value="ballad">Ballad</option>
+                        <option value="coral">Coral</option>
+                        <option value="echo">Echo</option>
+                        <option value="sage">Sage</option>
+                        <option value="shimmer">Shimmer</option>
+                        <option value="verse">Verse</option>
+                    </select>
+                    <div class="input-hint">Choose the assistant's voice for this call.</div>
+                </div>
                 <button type="submit" id="callBtn" disabled>
                     <span>Initiate Call</span>
                 </button>
@@ -570,6 +591,8 @@
             event.preventDefault();
 
             const phoneNumber = document.getElementById('phoneNumber').value;
+            const systemMessage = document.getElementById('systemMessage').value;
+            const voice = document.getElementById('voice').value;
             const btn = document.getElementById('callBtn');
             const callStatus = document.getElementById('callStatus');
 
@@ -581,13 +604,13 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span><span>Initiating...</span>';
 
-            console.log('[Call] Initiating call to:', phoneNumber);
+            console.log('[Call] Initiating call to:', phoneNumber, 'with voice:', voice);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/call`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber })
+                    body: JSON.stringify({ phoneNumber, systemMessage, voice })
                 });
 
                 const data = await response.json();
@@ -625,6 +648,7 @@
             btn.innerHTML = '<span>Initiate Call</span>';
             btn.style.backgroundColor = '#3182ce';
             btn.onclick = initiateCall;
+            btn.disabled = false;
 
             console.log('[Call] Ending call...');
 

@@ -8,6 +8,7 @@ export const broadcastToWebClients = (payload) => {
     }
   }
 };
+import { global } from '../index.js';
 // Configuration
 import { configDotenv } from 'dotenv';
 import { MediaStreamHandlerFactory } from './mediaStreamHandlerFactory.js';
@@ -68,8 +69,8 @@ const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
   openai: {
     apiKey: process.env.OPEN_API_KEY,
-    voice: VOICE || 'echo',
-    systemMessage: SYSTEM_MESSAGE,
+    voice: global.VOICE || 'ash',
+    systemMessage: global.LAST_SYSTEM_MESSAGE || SYSTEM_MESSAGE,
     model: 'gpt-4o-realtime-preview-2024-10-01'
   },
   deepgram: {
