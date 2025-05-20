@@ -12,9 +12,9 @@ export const makeCallUsingTwilio = async (session) => {
         const response = new VoiceResponse();
         const connect = response.connect();
         connect.stream({
-            url: `wss://${DOMAIN.replace(/^https?:\/\//, '')}/media-stream?sessionId=${_id}`,
+            url: `wss://${DOMAIN.replace(/^https?:\/\//, '')}/media-stream`,
             parameters: {
-                sessionId: session._id.toString()
+                sessionId: _id
             }
         });
         const twiml = response.toString();
