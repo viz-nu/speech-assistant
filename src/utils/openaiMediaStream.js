@@ -9,19 +9,47 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant.';
         this.OPEN_API_KEY = config.apiKey;
         this.MODEL = config.model || 'gpt-4o-realtime-preview-2024-10-01';
+        this.streamSid = config.streamSid;
+        this.broadcastToWebClients = null;
+        this.connected = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
     }
+
     async connect(connection) {
         this.connection = connection;
         this.openAiWs = new WebSocket(`wss://api.openai.com/v1/realtime?model=${this.MODEL}`, { headers: { Authorization: `Bearer ${this.OPEN_API_KEY}`, "OpenAI-Beta": "realtime=v1" } });
         this.openAiWs.on('open', () => {
-            console.log('Connected to the OpenAI Realtime API');
-            setTimeout(() => this.sendInitialSessionUpdate(), 250); // Ensure connection stability, send after .250 second
+            console.log(`[${this.callSessionId}] Connected to OpenAI Realtime API`);
+            this.connected = true;
+            this.reconnectAttempts = 0;
+            // Send initial session setup after a short delay to ensure connection stability
+            setTimeout(() => this.sendInitialSessionUpdate(), 250);
         });
         this.openAiWs.on('message', (data) => this.handleOpenAIMessage(data));
-        this.openAiWs.on('close', () => console.log('Disconnected from the OpenAI Realtime API'));
-        this.openAiWs.on('error', (error) => console.error('Error in the OpenAI WebSocket:', error));
+        this.openAiWs.on('close', (code, reason) => {
+            console.log(`[${this.callSessionId}] Disconnected from OpenAI Realtime API:`, code, reason?.toString());
+            this.connected = false;
+            // Attempt reconnection if unexpected closure
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.attemptReconnect();
+            }
+        });
+        this.openAiWs.on('error', (error) => {
+            console.error(`[${this.callSessionId}] Error in OpenAI WebSocket:`, error);
+            if (this.broadcastToWebClients) this.broadcastToWebClients({ type: 'error', message: 'Error connecting to AI service' });
+        });
     }
+    async attemptReconnect() {
+        this.reconnectAttempts++;
+        console.log(`[${this.callSessionId}] Attempting to reconnect to OpenAI (attempt ${this.reconnectAttempts})`);
 
+        try {
+            await this.connect(this.connection);
+        } catch (error) {
+            console.error(`[${this.callSessionId}] Reconnection attempt failed:`, error);
+        }
+    }
     sendInitialSessionUpdate() {
         const sessionUpdate = {
             type: 'session.update',
@@ -52,7 +80,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 content: [
                     {
                         type: 'input_text',
-                        text: 'Greet the user with "Hello this is AVA, I am here you help you with your abroad education journey"'
+                        text: 'Greet the user with "Hello this is AVA, how can I help you?"'
                     }
                 ]
             }
@@ -123,6 +151,13 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'start':
                     this.streamSid = data.start.streamSid;
+                    CallSession.findByIdAndUpdate(
+                        this.callSessionId,
+                        {
+                            startTime: new Date(),
+                            status: 'active',
+                            twilioStreamSid: this.streamSid
+                        })
                     console.log('user attended the call', this.streamSid);
                     break;
                 case 'stop':
@@ -137,7 +172,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.error('Error parsing message:', error, 'Message:', message);
         }
     }
-
     disconnect() {
         if (this.openAiWs && this.openAiWs.readyState === WebSocket.OPEN) {
             this.openAiWs.close();

@@ -6,7 +6,10 @@ const TranscriptSchema = new mongoose.Schema({
 });
 
 const CallSessionSchema = new mongoose.Schema({
-    callSessionId: { type: String },
+    callSessionId: String,
+    duration: Number,
+    startTime: { type: Date, default: Date.now },
+    status: String,
     phoneNumber: String,
     voice: String,
     systemMessage: String,
