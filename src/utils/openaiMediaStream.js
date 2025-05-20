@@ -1,10 +1,10 @@
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
-const conversation = []
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
         super(config);
         this.openAiWs = null;
+        this.callSessionId = config.callSessionId;
         this.VOICE = config.voice || 'echo';
         this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant.';
         this.OPEN_API_KEY = config.apiKey;
@@ -67,22 +67,16 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (response.type) {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (response.transcript.trim()) {
-                        console.log('USER SAID (complete):');
-                        console.dir(response.transcript);
-                        conversation.push({ role: 'user', content: response.transcript })
+                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript, timestamp: new Date() } } });
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
                     }
                     break;
-
                 case 'response.audio_transcript.done':
                     if (response.transcript.trim()) {
-                        console.log('AUDIO TRANSCRIPT (complete):');
-                        console.dir(response.transcript);
-                        conversation.push({ role: 'assistant', content: response.transcript })
+                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript, timestamp: new Date() } } });
                         this.broadcastToWebClients({ type: 'ava_response', text: response.transcript });
                     }
                     break;
-
                 case 'response.audio.delta':
                     if (response.delta) {
                         const audioDelta = {
@@ -95,27 +89,22 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         this.connection.send(JSON.stringify(audioDelta));
                     }
                     break;
-
                 case 'session.updated':
                     console.log('Session updated');
                     break;
-
                 case 'input_audio.vad':
                     if (response.status === 'speech_start') {
                         console.log('User started speaking - interrupting model');
                         this.openAiWs.send(JSON.stringify({ type: 'response.stop' }));
                     }
                     break;
-
                 case 'response.interrupted':
                     console.log('Response was interrupted by user');
                     break;
-
                 case 'response.completed':
                     console.log('Response completed');
                     this.broadcastToWebClients(JSON.stringify({ type: 'ava_done' }))
                     break;
-
                 default:
                     console.log(`event type ${response.type}`);
                     break;
@@ -130,34 +119,19 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             const data = JSON.parse(message);
             switch (data.event) {
                 case 'media':
-                    if (this.openAiWs.readyState === WebSocket.OPEN) {
-                        const audioAppend = { type: 'input_audio_buffer.append', audio: data.media.payload };
-                        this.openAiWs.send(JSON.stringify(audioAppend));
-                    }
+                    if (this.openAiWs.readyState === WebSocket.OPEN) this.openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.media.payload }));
                     break;
-
                 case 'start':
                     this.streamSid = data.start.streamSid;
                     console.log('user attended the call', this.streamSid);
                     break;
-
                 case 'stop':
                     console.log('user disconnected the call');
                     break;
-
                 default:
                     console.log('Received non-media event:', data.event);
                     break;
-// Connected
-// Start
-// Media
-// DTMF
-// Stop
-
-
-
             }
-
 
         } catch (error) {
             console.error('Error parsing message:', error, 'Message:', message);

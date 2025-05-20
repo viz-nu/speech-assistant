@@ -5,7 +5,7 @@ let {
     PORT,
     NODE_ENV = 'development', // 'production'
 } = process.env;
-
+const { DOMAIN } = process.env;
 // Initialize the Twilio library and set our outgoing call TwiML
 
 import Fastify from 'fastify';
@@ -15,6 +15,7 @@ import fastifyWs from '@fastify/websocket';
 import { makeCallUsingTwilio } from './utils/twillio.js';
 import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 import { analyzeConversation } from './utils/openAi.js';
+import { CallSession } from './models/sessionData.js';
 // Initialize Fastify
 // NODE_ENV === 'production' ? 'info' :"debug"
 const fastify = Fastify({ logger: { level: "info" } });
@@ -26,50 +27,24 @@ fastify.get('/health', async (request, reply) => { return { status: 'ok', worker
 // POST endpoint to initiate calls
 fastify.post('/call', async (request, reply) => {
     try {
-        const { phoneNumber, systemMessage,voice } = request.body;
+        const { phoneNumber, systemMessage, voice = "ash" } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
-        // Store the system message for this session (in-memory, or pass to provider config)
-        if (systemMessage) global.LAST_SYSTEM_MESSAGE = systemMessage.trim();
-        if (voice) global.VOICE = voice.trim();
-        console.log(global);
-        
-        // Make the call
-        const result = await makeCallUsingTwilio(phoneNumber);
+        const session = await CallSession.create({ phoneNumber, voice, systemMessage, outboundTwiML, provider: "openai", transcripts: [], misc: { twilio: { ...call } } });
+        const outboundTwiML = `<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="wss://${DOMAIN.replace(/(^\w+:|^)\/\//, '').replace(/\/+$/, '')}/media-stream?sessionId=${session._id}" /></Connect></Response>`;
+        const call = await makeCallUsingTwilio({ to: phoneNumber, twiml: outboundTwiML });
+        await CallSession.findByIdAndUpdate(session._id, { callSessionId: call.sid, outboundTwiML, misc: { twilio: { ...call } } });
         // const result = await makeCallUsingExotel(phoneNumber);
-        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: result });
+        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: call });
     } catch (error) {
         fastify.log.error(error);
         return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
     }
 });
-
-// GET endpoint to initiate calls (alternative)
-fastify.get('/call/:phoneNumber', async (request, reply) => {
-    try {
-        const { phoneNumber } = request.params;
-        if (!validatePhoneNumber(phoneNumber)) {
-            return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
-        }
-        // Make the call
-        const result = await makeCall(phoneNumber);
-        return reply.code(200).send({
-            success: true,
-            message: `Call initiated to ${phoneNumber}`,
-            data: result
-        });
-
-    } catch (error) {
-        fastify.log.error(error);
-        return reply.code(500).send({
-            error: 'Internal server error',
-            message: 'Failed to initiate call'
-        });
-    }
-});
 fastify.get('/call-summary ', async (request, reply) => {
     try {
-        const { conversation } = request.query;
+        const { sessionId } = request.query;
+        const conversation = await CallSession.findById(sessionId, "transcripts");
         const summary = await analyzeConversation(conversation, OPEN_API_KEY);
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {

@@ -11,27 +11,27 @@ export const broadcastToWebClients = (payload) => {
 // Configuration
 import { configDotenv } from 'dotenv';
 import { MediaStreamHandlerFactory } from './mediaStreamHandlerFactory.js';
+import { CallSession } from '../models/sessionData.js';
 configDotenv();
-const VOICE = 'ash';
 const SYSTEM_MESSAGE = `You are AVA, a warm and smart student advisor at **One Window**, a trusted consultancy helping students achieve their global study dreams. You guide students step-by-step — from exploring options to getting visas — in a friendly, persuasive, and helpful tone. Speak like a trusted friend with expert advice. Keep answers short (1–2 sentences, max 3-5 sentences) and focus on helping students take confident, clear action.
 ### Start Natural & Build Rapport First:
 - Always begin by understanding **who they are**:
-  > "Hi! I’m AVA from One Window 😊 What’s your name and what inspired you to study abroad?"
+  > "Hi! I'm AVA from One Window 😊 What's your name and what inspired you to study abroad?"
 - Then explore the basics in a friendly flow:
   - 🌍 Preferred country or destination?
   - 🎓 What course or subject are you excited about?
   - 📅 Target intake — this year, next, or later?
   - 💸 Budget range? Need scholarship or funding help?
 ### Dig Deeper if They're Engaged:
-- If they’re serious, ask about:
+- If they're serious, ask about:
   - 🏫 Academic background (latest qualification, grades, etc.)
   - 🗣️ English/language proficiency (IELTS/TOEFL/other)
   - 🧭 Career goals — what kind of future are they aiming for?
   - 🧩 Any preferences (big city vs campus life, specific unis, etc.)
 ### Motivate & Recommend:
 - Once you know enough, give short, confident suggestions:
-  - “You’d love XYZ University in Canada — strong in your field, and great scholarship options.”
-  - “Australia’s Feb intake is perfect for you. Let’s make it happen.”
+  - "You'd love XYZ University in Canada — strong in your field, and great scholarship options."
+  - "Australia's Feb intake is perfect for you. Let's make it happen."
 - Always highlight:
   - 🎓 Best-fit unis & courses
   - ✅ Clear admission steps
@@ -40,15 +40,15 @@ const SYSTEM_MESSAGE = `You are AVA, a warm and smart student advisor at **One W
   - 📑 Visa made simple
 ### Build Trust & Take Next Step:
 - Be encouraging and confident: 
-  - “Studying abroad changes lives — and this is the perfect time to begin.”
-  - “Let’s take the next step together. I’ll guide you all the way.”
+  - "Studying abroad changes lives — and this is the perfect time to begin."
+  - "Let's take the next step together. I'll guide you all the way."
 - Invite them to **book time with an expert**:
-  > “Want tailored advice? Just share your next available time and I’ll schedule you with a One Window expert.”
+  > "Want tailored advice? Just share your next available time and I'll schedule you with a One Window expert."
 ### Always Mention One Window:
 - Position us as the easiest, most supportive way to study abroad:
-  > “One Window makes everything easy — from choosing unis to visa success.”
+  > "One Window makes everything easy — from choosing unis to visa success."
 - Gently add urgency:
-  > “Seats fill fast, so let’s get started today!”
+  > "Seats fill fast, so let's get started today!"
 - Send students to [onewindow.co](https://onewindow.co) for:
   - Smart university matches
   - Scholarship options
@@ -67,6 +67,7 @@ Today’s date: ${new Date()}`;
 const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
   openai: {
+    callSessionId: "",
     apiKey: process.env.OPEN_API_KEY,
     voice: 'ash',
     systemMessage: SYSTEM_MESSAGE,
@@ -86,12 +87,25 @@ export function setupWebSocketRoutes(fastify) {
   fastify.register(async (fastify) => {
     // Setup WebSocket server for handling media streams
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
-      console.log(`Client connected using ${PROVIDER} provider`);
+      // Extract the sessionId from query parameters
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const sessionId = url.searchParams.get('sessionId');
+      if (!sessionId) {
+        console.error('No sessionId provided in WebSocket connection');
+        connection.socket.close(1008, 'SessionId required');
+        return;
+      }
+      // Fetch the document from MongoDB using the sessionId
+      const session = await CallSession.findById(sessionId);
+      if (!session) {
+        console.error(`No session found with ID: ${sessionId}`);
+        connection.socket.close(1008, 'Session not found');
+        return;
+      }
+      console.log(`WebSocket connected for session: ${sessionId}`);
+      console.log(`Client connected using ${session.provider} provider`);
       // Create handler based on selected provider
-      console.log(global.VOICE, global.LAST_SYSTEM_MESSAGE?.length);
-      if (global.VOICE) providerConfigs[PROVIDER].voice = global.VOICE;
-      if (global.LAST_SYSTEM_MESSAGE) providerConfigs[PROVIDER].systemMessage = global.LAST_SYSTEM_MESSAGE;
-      const handler = MediaStreamHandlerFactory.create(PROVIDER, providerConfigs[PROVIDER]);
+      const handler = MediaStreamHandlerFactory.create(session.provider, { ...providerConfigs[session.provider], callSessionId: session._id, voice: session.voice || providerConfigs[session.provider].voice, systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage });
       // Set up broadcasting function
       handler.setBroadcastFunction(broadcastToWebClients);
       try {
@@ -106,14 +120,14 @@ export function setupWebSocketRoutes(fastify) {
           handler.disconnect()
           handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
           handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Client disconnected" });
-
+          return;
         });
       } catch (error) {
         console.error(`Error setting up ${PROVIDER} handler:`, error);
         connection.close();
         handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
         handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Client disconnected" });
-
+        return;
       }
     });
 
@@ -133,12 +147,14 @@ export function setupWebSocketRoutes(fastify) {
         clearInterval(pingInterval);
         webClients.delete(clientSocket);
         console.log('Client UI disconnected');
+        return;
       });
 
       clientSocket.on('error', (error) => {
         clearInterval(pingInterval);
         console.error('Client UI error:', error);
         webClients.delete(clientSocket);
+        return;
       });
 
     });
