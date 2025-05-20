@@ -33,6 +33,8 @@ fastify.post('/call', async (request, reply) => {
         // Store the system message for this session (in-memory, or pass to provider config)
         if (systemMessage) global.LAST_SYSTEM_MESSAGE = systemMessage.trim();
         if (voice) global.VOICE = voice.trim();
+        console.log(global);
+        
         // Make the call
         const result = await makeCallUsingTwilio(phoneNumber);
         // const result = await makeCallUsingExotel(phoneNumber);
