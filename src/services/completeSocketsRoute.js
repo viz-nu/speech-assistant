@@ -89,10 +89,10 @@ export function setupWebSocketRoutes(fastify) {
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
       console.log(`Client connected using ${PROVIDER} provider`);
       // Create handler based on selected provider
-      const config = { ...providerConfigs[PROVIDER] };
-      if (global.VOICE) config.voice = global.VOICE;
-      if (global.LAST_SYSTEM_MESSAGE) config.systemMessage = global.LAST_SYSTEM_MESSAGE;
-      const handler = MediaStreamHandlerFactory.create(PROVIDER, config);
+      console.log(global.VOICE, global.LAST_SYSTEM_MESSAGE?.length);
+      if (global.VOICE) providerConfigs[PROVIDER].voice = global.VOICE;
+      if (global.LAST_SYSTEM_MESSAGE) providerConfigs[PROVIDER].systemMessage = global.LAST_SYSTEM_MESSAGE;
+      const handler = MediaStreamHandlerFactory.create(PROVIDER, providerConfigs[PROVIDER]);
       // Set up broadcasting function
       handler.setBroadcastFunction(broadcastToWebClients);
       try {
