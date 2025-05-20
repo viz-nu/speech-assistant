@@ -11,12 +11,9 @@ export const makeCallUsingTwilio = async (session) => {
         const VoiceResponse = twilio.twiml.VoiceResponse;
         const response = new VoiceResponse();
         const connect = response.connect();
-        connect.stream({
-            url: `wss://${DOMAIN.replace(/^https?:\/\//, '')}/media-stream`,
-            parameters: {
-                sessionId: _id
-            }
-        });
+        const stream = connect.stream({ url: `wss://${DOMAIN.replace(/^https?:\/\//, '')}/media-stream` });
+        // ✅ Add sessionId explicitly as a parameter
+        stream.parameter({ name: 'sessionId', value: _id.toString() });
         const twiml = response.toString();
         console.log('✅ Final TwiML being sent to Twilio:\n', twiml);
         // ✅ Make the call
