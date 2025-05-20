@@ -1,4 +1,5 @@
 import { configDotenv } from 'dotenv';
+import './utils/connectTodb.js';
 configDotenv();
 let {
     OPEN_API_KEY,
