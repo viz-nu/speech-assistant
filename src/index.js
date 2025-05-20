@@ -34,7 +34,8 @@ fastify.post('/call', async (request, reply) => {
         const session = await CallSession.create({ phoneNumber, voice, systemMessage, provider: "openai", transcripts: [], misc: {} });
         const outboundTwiML = `<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="wss://${DOMAIN.replace(/(^\w+:|^)\/\//, '').replace(/\/+$/, '')}/media-stream?sessionId=${session._id}" /></Connect></Response>`;
         const call = await makeCallUsingTwilio({ to: phoneNumber, twiml: outboundTwiML });
-        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, outboundTwiML, misc: { twilio: { ...call } } } });
+        const sanitizedCall = JSON.parse(JSON.stringify(call));
+        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, outboundTwiML, misc: { twilio: { sanitizedCall } } } });
         // const result = await makeCallUsingExotel(phoneNumber);
         return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: call });
     } catch (error) {
