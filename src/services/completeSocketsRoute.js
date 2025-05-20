@@ -69,8 +69,8 @@ const PROVIDER = 'openai'; // Can be 'openai', 'deepgram', 'groq'
 const providerConfigs = {
   openai: {
     apiKey: process.env.OPEN_API_KEY,
-    voice: global.VOICE || 'ash',
-    systemMessage: global.LAST_SYSTEM_MESSAGE || SYSTEM_MESSAGE,
+    voice: 'ash',
+    systemMessage: SYSTEM_MESSAGE,
     model: 'gpt-4o-realtime-preview-2024-10-01'
   },
   deepgram: {
@@ -89,7 +89,10 @@ export function setupWebSocketRoutes(fastify) {
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
       console.log(`Client connected using ${PROVIDER} provider`);
       // Create handler based on selected provider
-      const handler = MediaStreamHandlerFactory.create(PROVIDER, providerConfigs[PROVIDER]);
+      const config = { ...providerConfigs[PROVIDER] };
+      if (global.VOICE) config.voice = global.VOICE;
+      if (global.LAST_SYSTEM_MESSAGE) config.systemMessage = global.LAST_SYSTEM_MESSAGE;
+      const handler = MediaStreamHandlerFactory.create(PROVIDER, config);
       // Set up broadcasting function
       handler.setBroadcastFunction(broadcastToWebClients);
       try {
