@@ -90,81 +90,75 @@ export function setupWebSocketRoutes(fastify) {
       let sessionId;
       let handler;
       let activeSession = false;
-      // Step 1: Listen for the initial message containing session ID
-      connection.on('message', async (message) => {
-        try {
-          const parsed = JSON.parse(message);
-          // Step 2: Extract session ID from the 'start' event
-          if (parsed.event === 'start' && !activeSession) {
-            sessionId = parsed.start.customParameters?.sessionId;
-            console.log("parsed data on start", parsed.start);
-            console.log('Session ID from Twilio metadata:', sessionId);
-            if (!sessionId) {
-              console.error('No session ID provided in connection metadata');
-              connection.close();
-              return;
-            }
-            // Step 3: Fetch session info from MongoDB
-            try {
-              const session = await CallSession.findById(sessionId);
-              if (!session) {
-                console.error(`Session ${sessionId} not found in database`);
+      try {
+        // Step 1: Listen for the initial message containing session ID
+        connection.on('message', async (message) => {
+          try {
+            const parsed = JSON.parse(message);
+            // Step 2: Extract session ID from the 'start' event
+            if (parsed.event === 'start' && !activeSession) {
+              sessionId = parsed.start.customParameters?.sessionId;
+              console.log("parsed data on start", parsed.start);
+              console.log('Session ID from Twilio metadata:', sessionId);
+              if (!sessionId) {
+                console.error('No session ID provided in connection metadata');
                 connection.close();
                 return;
               }
-              // Step 4: Configure the handler based on provider from session
-              const provider = session.provider || 'openai'; // Default to OpenAI if not specified
-              handler = MediaStreamHandlerFactory.create(provider, { ...providerConfigs[provider], callSessionId: session._id, voice: session.voice || providerConfigs[provider].voice, systemMessage: session.systemMessage || providerConfigs[provider].systemMessage, streamSid: parsed.start.streamSid });
-              // Configure broadcast function for web client updates
-              handler.setBroadcastFunction(broadcastToWebClients);
-              // Step 5: Connect to OpenAI
-              await handler.connect(connection);
-              activeSession = true;
-              // Update call status
-              await CallSession.findByIdAndUpdate(sessionId, { status: 'active' });
-              handler.broadcastToWebClients({ type: 'callStatus', text: "active" });
-              // Now that we're set up, handle the current message
+              // Step 3: Fetch session info from MongoDB
+              try {
+                const session = await CallSession.findById(sessionId);
+                if (!session) {
+                  console.error(`Session ${sessionId} not found in database`);
+                  connection.close();
+                  return;
+                }
+                // Step 4: Configure the handler based on provider from session
+                const provider = session.provider || 'openai'; // Default to OpenAI if not specified
+                handler = MediaStreamHandlerFactory.create(provider, { ...providerConfigs[provider], callSessionId: session._id, voice: session.voice || providerConfigs[provider].voice, systemMessage: session.systemMessage || providerConfigs[provider].systemMessage, streamSid: parsed.start.streamSid });
+                // Configure broadcast function for web client updates
+                handler.setBroadcastFunction(broadcastToWebClients);
+                // Step 5: Connect to OpenAI
+                await handler.connect(connection);
+                activeSession = true;
+                // Update call status
+                await CallSession.findByIdAndUpdate(sessionId, { status: 'active' });
+                handler.broadcastToWebClients({ type: 'callStatus', text: "active" });
+                // Now that we're set up, handle the current message
+                handler.handleIncomingMessage(message);
+              } catch (err) {
+                console.error(`Error setting up session ${sessionId}:`, err);
+                connection.close();
+              }
+            } else if (activeSession && handler) {
+              // Regular message handling after setup is complete
               handler.handleIncomingMessage(message);
-            } catch (err) {
-              console.error(`Error setting up session ${sessionId}:`, err);
-              connection.close();
             }
-          } else if (activeSession && handler) {
-            // Regular message handling after setup is complete
-            handler.handleIncomingMessage(message);
+          } catch (err) {
+            console.error('Error processing WebSocket message:', err, 'Raw message:', message);
           }
-        } catch (err) {
-          console.error('Error processing WebSocket message:', err, 'Raw message:', message);
-        }
-      });
-      // Step 6: Handle disconnections
-      connection.on('close', async () => {
-        console.log(`WebSocket connection closed for session ${sessionId}`);
-        if (handler) {
-          handler.disconnect();
-          handler.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
-          handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended" });
-        }
-        // Update session status in database
-        if (sessionId) {
-          await CallSession.findByIdAndUpdate(sessionId, {
-            status: 'completed',
-            endTime: new Date()
-          });
-        }
-      });
-      // Create handler based on selected provider
-      // const handler = MediaStreamHandlerFactory.create(session.provider, { ...providerConfigs[session.provider], callSessionId: session._id, voice: session.voice || providerConfigs[session.provider].voice, systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage });
-      // Set up broadcasting function
-
-      try {
-        // Handle incoming messages from Twilio/client
-
+        });
+        // Step 6: Handle disconnections
+        connection.on('close', async () => {
+          console.log(`WebSocket connection closed for session ${sessionId}`);
+          if (handler) {
+            handler.disconnect();
+            handler.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
+            handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: sessionId });
+          }
+          // Update session status in database
+          if (sessionId) {
+            await CallSession.findByIdAndUpdate(sessionId, {
+              status: 'completed',
+              endTime: new Date()
+            });
+          }
+        });
       } catch (error) {
         console.error(`Error setting up ${PROVIDER} handler:`, error);
         connection.close();
         handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
-        handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Client disconnected" });
+        handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: sessionId });
         return;
       }
     });

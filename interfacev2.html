@@ -407,6 +407,12 @@
                 </div>
             </div>
         </div>
+
+        <div class="container" id="summaryContainer" style="display:none;">
+            <h2>Call Summary</h2>
+            <div id="callSummary" class="summary-content"
+                style="background:#f9fafb; border-radius:0.375rem; padding:1rem; border:1px solid #e2e8f0;"></div>
+        </div>
     </main>
 
     <footer>
@@ -514,6 +520,11 @@
                     break;
                 case 'ava_done':
                     console.log('[Handler] AVA done calling now gathering conclusions', data);
+                    handleAvaDone(data);
+                    break;
+                case 'error':
+                    console.error('[Handler] Error:', data);
+                    handleSocketError(data);
                     break;
                 default:
                     console.warn('[Handler] Unknown message type:', data.type);
@@ -560,17 +571,54 @@
                 console.log('[Call] Call was active, now ending due to disconnection.');
                 endCall();
             }
+            // If sessionId is present, fetch and display the summary
+            if (data && data.sessionId) {
+                fetchCallSummaryAndDisplay(data.sessionId);
+            }
+        }
+
+        async function fetchCallSummaryAndDisplay(sessionId) {
+            const summaryContainer = document.getElementById('summaryContainer');
+            const callSummary = document.getElementById('callSummary');
+            summaryContainer.style.display = 'block';
+            callSummary.textContent = 'Fetching call summary...';
+            try {
+                const response = await fetch(`${API_BASE_URL}/call-summary?sessionId=${encodeURIComponent(sessionId)}`);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    callSummary.textContent = result.data;
+                } else {
+                    callSummary.textContent = 'Could not fetch summary.';
+                }
+            } catch (err) {
+                callSummary.textContent = 'Error fetching summary.';
+            }
         }
 
         function handleCallStatus(data) {
             const callStatus = document.getElementById('callStatus');
-            currentCallActive = data.status === 'active';
+            const status = data.status || data.text;
+            currentCallActive = status === 'active';
 
             if (currentCallActive) {
                 callStatus.classList.add('active');
             } else {
                 callStatus.classList.remove('active');
             }
+        }
+
+        function handleAvaDone(data) {
+            // Show a message in the transcript or as a notification
+            handleTranscript({ message: "Call completed. Gathering conclusions...", speaker: 'assistant' });
+            // Optionally, you can show a toast or modal here
+            // alert("Call completed. Gathering conclusions...");
+        }
+
+        function handleSocketError(data) {
+            // Show error in the transcript or as a notification
+            handleTranscript({ message: "Error: " + (data.message || "Unknown error"), speaker: 'assistant' });
+            // Optionally, you can show a toast or modal here
+            // alert("Error: " + (data.message || "Unknown error"));
         }
 
         async function checkHealth() {

@@ -42,7 +42,7 @@ fastify.post('/call', async (request, reply) => {
         return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
     }
 });
-fastify.get('/call-summary ', async (request, reply) => {
+fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
         const conversation = await CallSession.findById(sessionId, "transcripts");
