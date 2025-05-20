@@ -115,7 +115,7 @@ export function setupWebSocketRoutes(fastify) {
                 }
                 // Step 4: Configure the handler based on provider from session
                 const provider = session.provider || 'openai'; // Default to OpenAI if not specified
-                handler = MediaStreamHandlerFactory.create(provider, { ...providerConfigs[provider], callSessionId: session._id, voice: session.voice || providerConfigs[provider].voice, systemMessage: session.systemMessage || providerConfigs[provider].systemMessage, streamSid: parsed.start.streamSid });
+                handler = MediaStreamHandlerFactory.create(provider, { ...providerConfigs[provider], callSessionId: session.callSessionId, voice: session.voice || providerConfigs[provider].voice, systemMessage: session.systemMessage || providerConfigs[provider].systemMessage, streamSid: parsed.start.streamSid });
                 // Configure broadcast function for web client updates
                 handler.setBroadcastFunction(broadcastToWebClients);
                 // Step 5: Connect to OpenAI
