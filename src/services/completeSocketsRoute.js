@@ -87,7 +87,15 @@ export function setupWebSocketRoutes(fastify) {
   fastify.register(async (fastify) => {
     // Setup WebSocket server for handling media streams
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
+      // Log the raw request URL
+      console.log('Incoming WebSocket connection URL:', req.url);
+      console.log('Headers:', req.headers);
+
+      // Log parsed query
       const { sessionId } = req.query;
+      console.log('Parsed query:', req.query);
+      console.log('Parsed sessionId:', sessionId);
+
       if (!sessionId) {
         console.error('No sessionId provided in WebSocket connection');
         connection.close(1008, 'SessionId required');
