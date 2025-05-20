@@ -9,6 +9,7 @@ const CallSessionSchema = new mongoose.Schema({
     callSessionId: String,
     duration: Number,
     startTime: { type: Date, default: Date.now },
+    endTime: Date,
     status: String,
     phoneNumber: String,
     voice: String,

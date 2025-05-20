@@ -97,7 +97,7 @@ export function setupWebSocketRoutes(fastify) {
           // Step 2: Extract session ID from the 'start' event
           if (parsed.event === 'start' && !activeSession) {
             sessionId = parsed.start.customParameters?.sessionId;
-            console.log("parsed data on start",parsed.start);
+            console.log("parsed data on start", parsed.start);
             console.log('Session ID from Twilio metadata:', sessionId);
             if (!sessionId) {
               console.error('No session ID provided in connection metadata');
@@ -149,9 +149,7 @@ export function setupWebSocketRoutes(fastify) {
         if (sessionId) {
           await CallSession.findByIdAndUpdate(sessionId, {
             status: 'completed',
-            duration: function () {
-              return (new Date() - this.startTime) / 1000; // Duration in seconds
-            }
+            endTime: new Date()
           });
         }
       });

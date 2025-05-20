@@ -1,3 +1,4 @@
+import { CallSession } from '../models/sessionData.js';
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
