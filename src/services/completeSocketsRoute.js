@@ -87,19 +87,17 @@ export function setupWebSocketRoutes(fastify) {
   fastify.register(async (fastify) => {
     // Setup WebSocket server for handling media streams
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
-      // Extract the sessionId from query parameters
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      const sessionId = url.searchParams.get('sessionId');
+      const { sessionId } = req.query;
       if (!sessionId) {
         console.error('No sessionId provided in WebSocket connection');
-        connection.socket.close(1008, 'SessionId required');
+        connection.close(1008, 'SessionId required');
         return;
       }
       // Fetch the document from MongoDB using the sessionId
       const session = await CallSession.findById(sessionId);
       if (!session) {
         console.error(`No session found with ID: ${sessionId}`);
-        connection.socket.close(1008, 'Session not found');
+        connection.close(1008, 'Session not found');
         return;
       }
       console.log(`WebSocket connected for session: ${sessionId}`);
