@@ -27,7 +27,7 @@ export const global = {}
 // POST endpoint to initiate calls
 fastify.post('/call', async (request, reply) => {
     try {
-        const { phoneNumber, systemMessage } = request.body;
+        const { phoneNumber, systemMessage,voice } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
         // Store the system message for this session (in-memory, or pass to provider config)
