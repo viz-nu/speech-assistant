@@ -32,10 +32,9 @@ fastify.post('/call', async (request, reply) => {
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
         const session = await CallSession.create({ phoneNumber, voice, systemMessage, provider: "openai", transcripts: [], misc: {} });
-        const outboundTwiML = `<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="wss://${DOMAIN.replace(/(^\w+:|^)\/\//, '').replace(/\/+$/, '')}/media-stream?sessionId=${session._id}" /></Connect></Response>`;
-        const call = await makeCallUsingTwilio({ to: phoneNumber, twiml: outboundTwiML });
+        const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
         const sanitizedCall = JSON.parse(JSON.stringify(call));
-        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, outboundTwiML, misc: { twilio: { sanitizedCall } } } });
+        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
         // const result = await makeCallUsingExotel(phoneNumber);
         return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: call });
     } catch (error) {
