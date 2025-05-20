@@ -23,7 +23,6 @@ fastify.register(fastifyWs);
 fastify.register(fastifyCors, { origin: true, credentials: true });
 fastify.get('/', async (request, reply) => { return { message: 'Twilio Media Stream Server is running!', status: 'healthy', timestamp: new Date().toISOString() }; });
 fastify.get('/health', async (request, reply) => { return { status: 'ok', worker: process.pid }; });
-export const global = {}
 // POST endpoint to initiate calls
 fastify.post('/call', async (request, reply) => {
     try {

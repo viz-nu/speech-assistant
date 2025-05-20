@@ -8,7 +8,6 @@ export const broadcastToWebClients = (payload) => {
     }
   }
 };
-import { global } from '../index.js';
 // Configuration
 import { configDotenv } from 'dotenv';
 import { MediaStreamHandlerFactory } from './mediaStreamHandlerFactory.js';
