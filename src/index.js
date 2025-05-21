@@ -42,8 +42,8 @@ fastify.post('/call', async (request, reply) => {
 fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
-        const conversation = await CallSession.findById(sessionId, "transcripts conclusion");
-        const summary = await analyzeConversation(conversation, conclusion, OPEN_API_KEY);
+        const session = await CallSession.findById(sessionId, "transcripts conclusion");
+        const summary = await analyzeConversation(session.transcripts, session.conclusion, OPEN_API_KEY);
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary } });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
