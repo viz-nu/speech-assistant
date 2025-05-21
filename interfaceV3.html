@@ -433,7 +433,11 @@
         </div>
 
         <div class="container" id="summaryContainer" style="display:none;">
-            <h2>Call Summary</h2>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <h2 style="margin-bottom:0;">Call Summary</h2>
+                <button id="refreshSummaryBtn" type="button"
+                    style="background:#2563eb; color:white; border:none; border-radius:0.5rem; padding:0.4rem 1.1rem; font-size:1rem; display:none;">Refresh</button>
+            </div>
             <div id="callSummary" class="summary-content"
                 style="background:#f9fafb; border-radius:0.375rem; padding:1rem; border:1px solid #e2e8f0;"></div>
         </div>
@@ -450,9 +454,11 @@
         let socket = null;
         let isConnected = false;
         let currentCallActive = false;
+        let lastSummarySessionId = null;
 
         // Initialize WebSocket connection
         function initializeWebSocket() {
+            // fetchCallSummaryAndDisplay()
             const statusBadge = document.getElementById('statusBadge');
             const connectionStatus = document.getElementById('connectionStatus');
             const callBtn = document.getElementById('callBtn');
@@ -602,13 +608,21 @@
         }
 
         async function fetchCallSummaryAndDisplay(sessionId) {
+            lastSummarySessionId = sessionId;
             const summaryContainer = document.getElementById('summaryContainer');
             const callSummary = document.getElementById('callSummary');
+            const refreshBtn = document.getElementById('refreshSummaryBtn');
             summaryContainer.style.display = 'block';
             callSummary.textContent = 'Fetching call summary...';
+            if (refreshBtn) {
+                refreshBtn.style.display = 'inline-block';
+                refreshBtn.disabled = true;
+                setTimeout(() => { refreshBtn.disabled = false; }, 1000); // prevent spam
+            }
             try {
                 const response = await fetch(`${API_BASE_URL}/call-summary?sessionId=${encodeURIComponent(sessionId)}`);
                 const result = await response.json();
+                // let result = { "success": true, "message": "summary extracted", "data": [{ "key": "client_name", "description": "Name of the client", "type": "string", "constraints": "None", "value": "Vishnu" }, { "key": "inspiration", "description": "What inspired the client to study abroad", "type": "string", "constraints": "None", "value": "Inspired by brother who studied Data Science at North Carolina State University" }, { "key": "desired_university", "description": "University the client wants to study at", "type": "string", "constraints": "None", "value": "North Carolina State University" }, { "key": "desired_country", "description": "Country where the client wants to study", "type": "string", "constraints": "None", "value": "USA" }, { "key": "field_of_study", "description": "Field of study the client is interested in", "type": "string", "constraints": "None", "value": "Data Science" }, { "key": "study_level", "description": "Level of study the client wants to pursue", "type": "string", "constraints": "None", "value": "Master's" }, { "key": "planned_start_time", "description": "When the client plans to start their studies", "type": "string", "constraints": "None", "value": "Next year" }, { "key": "needs_funding_help", "description": "Whether the client needs help with funding or scholarships", "type": "boolean", "constraints": "None", "value": true }, { "key": "services_interested", "description": "Services the client is interested in", "type": "string", "constraints": "None", "value": "University applications, scholarships and funding, visa applications, personalized advice" }, { "key": "meeting_scheduled", "description": "Whether a meeting with a One Window expert has been scheduled", "type": "boolean", "constraints": "None", "value": true }, { "key": "meeting_time", "description": "Scheduled time for the meeting", "type": "string", "constraints": "None", "value": "5:00 PM today" }] }
                 if (result.success && result.data) {
                     if (typeof result.data === 'object') {
                         callSummary.innerHTML = renderSummaryTable(result.data);
@@ -624,27 +638,85 @@
         }
 
         // Helper function to render summary as a table
-        function renderSummaryTable(summary) {
-            if (Array.isArray(summary)) {
-                let html = '<table style="width:100%; border-collapse:collapse;">';
-                html += '<tr><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Conclusion</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Details</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Type</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Constraints</th></tr>';
-                summary.forEach(item => {
-                    html += `<tr><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.key || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.description || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.type || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.constraints || ''}</td></tr>`;
-                });
-                html += '</table>';
-                return html;
-            }
-            let html = '<table style="width:100%; border-collapse:collapse;">';
-            for (const key in summary) {
-                if (typeof summary[key] === 'object' && summary[key] !== null) {
-                    html += `<tr><td style="font-weight:bold; padding:4px 8px; border-bottom:1px solid #eee;">${key}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${renderSummaryTable(summary[key])}</td></tr>`;
-                } else {
-                    html += `<tr><td style="font-weight:bold; padding:4px 8px; border-bottom:1px solid #eee;">${key}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${summary[key]}</td></tr>`;
-                }
-            }
-            html += '</table>';
-            return html;
+
+function renderSummaryTable(summary) {
+    if (Array.isArray(summary)) {
+        let html = '<table style="width:100%; border-collapse:collapse; font-family:Arial,sans-serif;">';
+        html += '<thead>';
+        html += '<tr style="background-color:#f5f5f5;">';
+        html += '<th style="text-align:left; padding:8px 12px; border-bottom:2px solid #ddd; font-weight:bold;">Key</th>';
+        html += '<th style="text-align:left; padding:8px 12px; border-bottom:2px solid #ddd; font-weight:bold;">Value</th>';
+        html += '<th style="text-align:left; padding:8px 12px; border-bottom:2px solid #ddd; font-weight:bold;">Info</th>';
+        html += '<th style="text-align:left; padding:8px 12px; border-bottom:2px solid #ddd; font-weight:bold;">Extra Info</th>';
+        html += '</tr>';
+        html += '</thead>';
+        html += '<tbody>';
+        
+        summary.forEach(item => {
+            // Create extra info combining type and constraints
+            const extraInfo = `Type: ${item.type || 'N/A'}${item.constraints && item.constraints !== 'None' ? ', Constraints: ' + item.constraints : ''}`;
+            
+            html += `<tr>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee; font-weight:bold;">${formatKey(item.key || '')}</td>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee;">${formatValue(item.value)}</td>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee; color:#666;">${item.description || ''}</td>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee; font-size:0.9em; color:#777;">${extraInfo}</td>`;
+            html += `</tr>`;
+        });
+        
+        html += '</tbody>';
+        html += '</table>';
+        return html;
+    }
+    
+    // Handle non-array objects (nested)
+    let html = '<table style="width:100%; border-collapse:collapse; font-family:Arial,sans-serif;">';
+    for (const key in summary) {
+        if (typeof summary[key] === 'object' && summary[key] !== null) {
+            html += `<tr>`;
+            html += `<td style="font-weight:bold; padding:8px 12px; border-bottom:1px solid #eee;">${formatKey(key)}</td>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee;" colspan="3">${renderSummaryTable(summary[key])}</td>`;
+            html += `</tr>`;
+        } else {
+            html += `<tr>`;
+            html += `<td style="font-weight:bold; padding:8px 12px; border-bottom:1px solid #eee;">${formatKey(key)}</td>`;
+            html += `<td style="padding:8px 12px; border-bottom:1px solid #eee;" colspan="3">${formatValue(summary[key])}</td>`;
+            html += `</tr>`;
         }
+    }
+    html += '</table>';
+    return html;
+}
+
+// Format keys to be more readable
+function formatKey(key) {
+    // Convert snake_case or camelCase to Title Case With Spaces
+    return key
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^\w/, c => c.toUpperCase())
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Format values based on their type
+function formatValue(value) {
+    if (value === undefined || value === null) {
+        return '<span style="color:#999;">Not provided</span>';
+    }
+    
+    if (typeof value === 'boolean') {
+        return value ? 
+            '<span style="color:#2e7d32; font-weight:bold;">Yes</span>' : 
+            '<span style="color:#c62828;">No</span>';
+    }
+    
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+    
+    return value.toString();
+}
 
         function handleCallStatus(data) {
             const callStatus = document.getElementById('callStatus');
@@ -744,6 +816,13 @@
             const callBtn = document.getElementById('callBtn');
             if (callBtn) {
                 callBtn.onclick = initiateCall;
+            }
+
+            const refreshBtn = document.getElementById('refreshSummaryBtn');
+            if (refreshBtn) {
+                refreshBtn.onclick = () => {
+                    if (lastSummarySessionId) fetchCallSummaryAndDisplay(lastSummarySessionId);
+                };
             }
         });
 
