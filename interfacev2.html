@@ -408,7 +408,7 @@
                     <div id="miscDataPairs"></div>
                     <button type="button" onclick="addMiscPair()"
                         style="margin-top:0.5rem; background:#3182ce; color:white; border:none; border-radius:0.375rem; padding:0.5rem 1.2rem; font-size:1rem;">+
-                        Add Conclusion</button>
+                        Add</button>
                 </div>
                 <button type="submit" id="callBtn" disabled>
                     <span>Initiate Call</span>
@@ -625,6 +625,15 @@
 
         // Helper function to render summary as a table
         function renderSummaryTable(summary) {
+            if (Array.isArray(summary)) {
+                let html = '<table style="width:100%; border-collapse:collapse;">';
+                html += '<tr><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Conclusion</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Details</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Type</th><th style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">Constraints</th></tr>';
+                summary.forEach(item => {
+                    html += `<tr><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.key || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.description || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.type || ''}</td><td style="padding:4px 8px; border-bottom:1px solid #eee;">${item.constraints || ''}</td></tr>`;
+                });
+                html += '</table>';
+                return html;
+            }
             let html = '<table style="width:100%; border-collapse:collapse;">';
             for (const key in summary) {
                 if (typeof summary[key] === 'object' && summary[key] !== null) {
@@ -678,7 +687,7 @@
         }
 
         // --- Dynamic Key-Description Pairs Logic ---
-        function addMiscPair(key = '', description = '') {
+        function addMiscPair(key = '', description = '', type = 'string', constraints = '') {
             const miscDataPairs = document.getElementById('miscDataPairs');
             const pairId = 'misc-pair-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
             const div = document.createElement('div');
@@ -688,8 +697,15 @@
             div.style.marginBottom = '0.5rem';
             div.id = pairId;
             div.innerHTML = `
-                <input type="text" placeholder="Conclusion" value="${key}" style="flex:1; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" />
-                <input type="text" placeholder="Details" value="${description}" style="flex:2; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" />
+                <input type="text" placeholder="Key" value="${key}" style="flex:1; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" />
+                <input type="text" placeholder="Description" value="${description}" style="flex:2; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" />
+                <select style="flex:0.8; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" aria-label="Type">
+                    <option value="string" ${type === 'string' ? 'selected' : ''}>String</option>
+                    <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
+                    <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
+                </select>
+                <input type="text" placeholder="Constraints (e.g. min=1, max=10)" value="${constraints}" style="flex:1.2; padding:0.5rem; border:1px solid #e2e8f0; border-radius:0.375rem;" />
+                <input type="hidden" value="" />
                 <button type="button" onclick="removeMiscPair('${pairId}')" style="background:#e53e3e; color:white; border:none; border-radius:0.375rem; padding:0.5rem 1rem;">Delete</button>
             `;
             miscDataPairs.appendChild(div);
@@ -706,10 +722,14 @@
             const miscData = [];
             rows.forEach(row => {
                 const inputs = row.querySelectorAll('input');
+                const selects = row.querySelectorAll('select');
                 const key = inputs[0].value.trim();
                 const description = inputs[1].value.trim();
+                const type = selects[0].value;
+                const constraints = inputs[2].value.trim();
+                // value is always empty string
                 if (key) {
-                    miscData.push({ key, description });
+                    miscData.push({ key, description, type, constraints, value: "" });
                 }
             });
             return miscData;

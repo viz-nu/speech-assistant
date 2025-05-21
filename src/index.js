@@ -36,7 +36,7 @@ fastify.post('/call', async (request, reply) => {
         const sanitizedCall = JSON.parse(JSON.stringify(call));
         await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
         // const result = await makeCallUsingExotel(phoneNumber);
-        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: call });
+        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: session });
     } catch (error) {
         fastify.log.error(error);
         return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
@@ -45,8 +45,9 @@ fastify.post('/call', async (request, reply) => {
 fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
-        const conversation = await CallSession.findById(sessionId, "transcripts");
-        const summary = await analyzeConversation(conversation, OPEN_API_KEY);
+        const conversation = await CallSession.findById(sessionId, "transcripts conclusion");
+        const summary = await analyzeConversation(conversation, conclusion, OPEN_API_KEY);
+        await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary } });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);
