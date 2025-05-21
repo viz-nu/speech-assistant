@@ -71,7 +71,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 input_audio_transcription: { model: "whisper-1" }
             }
         };
-        console.log('Sending session update:', JSON.stringify(sessionUpdate));
         this.openAiWs.send(JSON.stringify(sessionUpdate));
         const initialConversationItem = {
             type: 'conversation.item.create',
@@ -96,7 +95,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (response.type) {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (response.transcript.trim()) {
-                        console.log("user", { callSessionId: this.callSessionId, transcript: response.transcript });
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => {
                             console.error('Error saving user transcript:', error);
                         });
@@ -105,7 +103,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'response.audio_transcript.done':
                     if (response.transcript.trim()) {
-                        console.log("assist", { callSessionId: this.callSessionId, transcript: response.transcript });
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript } } }).catch((error) => {
                             console.error('Error saving assistant transcript:', error);
                         });
@@ -125,7 +122,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     }
                     break;
                 case 'session.updated':
-                    console.log('Session updated');
+                    // console.log('Session updated');
                     break;
                 case 'input_audio.vad':
                     if (response.status === 'speech_start') {
@@ -134,14 +131,14 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     }
                     break;
                 case 'response.interrupted':
-                    console.log('Response was interrupted by user');
+                    // console.log('Response was interrupted by user');
                     break;
                 case 'response.completed':
                     console.log('Response completed');
                     this.broadcastToWebClients(JSON.stringify({ type: 'ava_done' }))
                     break;
                 default:
-                    console.log(`event type ${response.type}`);
+                    // console.log(`event type ${response.type}`);
                     break;
             }
         } catch (error) {
