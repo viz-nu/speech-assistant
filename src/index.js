@@ -6,8 +6,6 @@ let {
     PORT,
     NODE_ENV = 'development', // 'production'
 } = process.env;
-const { DOMAIN } = process.env;
-// Initialize the Twilio library and set our outgoing call TwiML
 
 import Fastify from 'fastify';
 import fastifyCors from '@fastify/cors';
@@ -18,8 +16,7 @@ import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 import { analyzeConversation } from './utils/openAi.js';
 import { CallSession } from './models/sessionData.js';
 // Initialize Fastify
-// NODE_ENV === 'production' ? 'info' :"debug"
-const fastify = Fastify({ logger: { level: "info" } });
+const fastify = Fastify({ logger: { level: NODE_ENV === 'production' ? 'info' : "debug" } });
 fastify.register(fastifyFormBody);
 fastify.register(fastifyWs);
 fastify.register(fastifyCors, { origin: true, credentials: true });

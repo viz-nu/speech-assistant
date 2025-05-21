@@ -73,10 +73,10 @@ const providerConfigs = {
     systemMessage: SYSTEM_MESSAGE,
     model: 'gpt-4o-realtime-preview-2024-10-01'
   },
-  deepgram: {
-    apiKey: process.env.DEEPGRAM_API_KEY,
-    voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
-  },
+  // deepgram: {
+  //   apiKey: process.env.DEEPGRAM_API_KEY,
+  //   voiceAgentId: process.env.DEEPGRAM_VOICE_AGENT_ID
+  // },
   // groq: {
   //     apiKey: process.env.GROQ_API_KEY,
   //     model: 'llama3-groq-70b-8192-tool-use-preview',
@@ -165,13 +165,11 @@ export function setupWebSocketRoutes(fastify) {
     fastify.get('/ws/client', { websocket: true }, (clientSocket, req) => {
       console.log('Client UI connected');
       webClients.add(clientSocket);
-      // 🫀 Start heartbeat
       const pingInterval = setInterval(() => {
         if (clientSocket.readyState === clientSocket.OPEN) {
           clientSocket.ping(); // This keeps the connection alive
         }
       }, 30000); // every 30s
-      // 🧹 Cleanup on close
       clientSocket.on('close', () => {
         clearInterval(pingInterval);
         webClients.delete(clientSocket);
