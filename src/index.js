@@ -39,6 +39,22 @@ fastify.post('/call', async (request, reply) => {
         return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
     }
 });
+fastify.post('/exotel-call', async (request, reply) => {
+    try {
+        const { phoneNumber } = request.body;
+        // if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
+        // // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
+        // const session = await CallSession.create({ phoneNumber, voice, systemMessage, provider: "openai", transcripts: [], misc: {}, conclusion: miscData });
+        // const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
+        // const sanitizedCall = JSON.parse(JSON.stringify(call));
+        // await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
+        const result = await makeCallUsingExotel(phoneNumber);
+        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: session });
+    } catch (error) {
+        fastify.log.error(error);
+        return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
+    }
+});
 fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
