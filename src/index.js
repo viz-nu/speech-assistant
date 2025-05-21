@@ -42,9 +42,11 @@ fastify.post('/call', async (request, reply) => {
 fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
-        const session = await CallSession.findById(sessionId, "transcripts conclusion");
+        const session = await CallSession.findById(sessionId, "transcripts conclusion concluded");
+        if (!session) return reply.code(404).send({ error: 'Session not found', message: 'No session found with the provided ID' });
+        if (session.concluded) return reply.code(200).send({ success: true, message: `summary extracted`, data: session.conclusion });
         const summary = await analyzeConversation(session.transcripts, session.conclusion, OPEN_API_KEY);
-        await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary } });
+        await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);
