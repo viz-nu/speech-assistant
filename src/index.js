@@ -15,6 +15,8 @@ import { makeCallUsingTwilio } from './utils/twillio.js';
 import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 import { analyzeConversation } from './utils/openAi.js';
 import { CallSession } from './models/sessionData.js';
+import { makeCallUsingExotel } from './utils/exotel.js';
+import { jsonArrayToHtmlTable } from './utils/Emailer.js';
 // Initialize Fastify
 const fastify = Fastify({ logger: { level: NODE_ENV === 'production' ? 'info' : "debug" } });
 fastify.register(fastifyFormBody);
@@ -52,7 +54,7 @@ fastify.post('/exotel-call', async (request, reply) => {
         return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: session });
     } catch (error) {
         fastify.log.error(error);
-        return reply.code(500).send({ error: 'Internal server error', message: 'Failed to initiate call' });
+        return reply.code(500).send({ error: error, message: 'Failed to initiate call' });
     }
 });
 fastify.get('/call-summary', async (request, reply) => {
@@ -63,6 +65,9 @@ fastify.get('/call-summary', async (request, reply) => {
         if (session.concluded) return reply.code(200).send({ success: true, message: `summary extracted`, data: session.conclusion });
         const summary = await analyzeConversation(session.transcripts, session.conclusion, OPEN_API_KEY);
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
+        const html = jsonArrayToHtmlTable(summary);
+        const text = summary.map(item => `${item.key.toUpperCase()}:\nDescription: ${item.description}\nType: ${item.type}\nConstraints: ${item.constraints}\nValue: ${typeof item.value === 'object' ? JSON.stringify(item.value, null, 2) : item.value}\n\n`).join('');
+        await sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: "Conclusions derived from conversation in structured format", text, html });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);
