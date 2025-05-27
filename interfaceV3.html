@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Speech API Interface</title>
+    <title>Ava Speech Demonstration</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
         /* Reset and base styles */
@@ -356,8 +356,8 @@
             <div style="display:flex; align-items:center;">
                 <div class="logo-placeholder">S</div>
                 <div>
-                    <div class="header-title">Speech API Interface</div>
-                    <div class="header-subtitle">Professional voice call assistant with live transcript and summary
+                    <div class="header-title">Ava Speech Demonstration</div>
+                    <div class="header-subtitle">voice call assistant with live transcript and summary
                     </div>
                 </div>
             </div>
@@ -386,6 +386,19 @@
                         placeholder="Enter a custom system message for this call" rows="3"
                         style="width:100%;"></textarea>
                     <div class="input-hint">This message will guide the assistant's behavior for this call.</div>
+                    <div style="margin-top:0.5rem; display:flex; gap:0.7rem;">
+                        <button type="button"
+                            onclick="addQuickSystemMessage('Hello! I\'m here to help you with anything you need.')">Add
+                            Friendly Greeting</button>
+                        <button type="button"
+                            onclick="addQuickSystemMessage('This call may be recorded for quality and compliance purposes.')">Add
+                            Compliance Notice</button>
+                        <button type="button"
+                            onclick="addQuickSystemMessage('Thank you for your time! If you have more questions, feel free to ask.')">Add
+                            Closing Statement</button>
+                        <button type="button" onclick="clearSystemMessage()" style="background:#e53e3e;">Clear
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="voice">Voice</label>
@@ -402,7 +415,7 @@
                     <div class="input-hint">Choose the assistant's voice for this call.</div>
                 </div>
                 <div class="container" id="miscDataContainer">
-                    <h2>Conclusions Drawn After the Call</h2>
+                    <h2>Conclusions Drawn After the Call (optional)</h2>
                     <div style="color:#4a5568; font-size:0.95rem; margin-bottom:0.5rem;">Add, edit, or remove
                         conclusions and their details below. These will be saved with the call.</div>
                     <div id="miscDataPairs"></div>
@@ -444,7 +457,7 @@
     </main>
 
     <footer>
-        <p>&copy; 2025 Speech API Interface. All rights reserved.</p>
+        <p>&copy; 2025 Ava Speech Demonstration. All rights reserved.</p>
     </footer>
 
     <script>
@@ -899,6 +912,21 @@
             } else {
                 console.warn('[WebSocket] Cannot send endCall: socket not open.');
             }
+        }
+
+        function addQuickSystemMessage(msg) {
+            const textarea = document.getElementById('systemMessage');
+            if (textarea.value && !textarea.value.endsWith('\n')) {
+                textarea.value += '\n';
+            }
+            textarea.value += msg;
+            textarea.focus();
+        }
+
+        function clearSystemMessage() {
+            const textarea = document.getElementById('systemMessage');
+            textarea.value = '';
+            textarea.focus();
         }
 
     </script>
