@@ -13,8 +13,33 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.streamSid = config.streamSid;
         this.broadcastToWebClients = null;
         this.connected = false;
+        this.isAssistantSpeaking = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        this.lastInterruptionTime = 0;
+        this.interruptCooldownMs = 1000; // 1 second cooldown
+        this.inactivityTimeout = null;
+        this.inactivityDurationMs = 5000; // 5 seconds
+    }
+    startInactivityTimer() {
+        if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
+
+        this.inactivityTimeout = setTimeout(() => {
+            console.log(`[${this.callSessionId}] Ending call due to inactivity.`);
+            this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
+            this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended due to inactivity", sessionId: this.callSessionId });
+
+            this.disconnect(); // Close OpenAI socket
+            if (this.connection && this.connection.readyState === WebSocket.OPEN) {
+                this.connection.close(); // Close Twilio socket
+            }
+
+            CallSession.findByIdAndUpdate(this.callSessionId, {
+                status: 'completed',
+                endTime: new Date(),
+                reasonEnded: 'inactivity'
+            }).catch(console.error);
+        }, this.inactivityDurationMs);
     }
 
     async connect(connection) {
@@ -88,7 +113,16 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.openAiWs.send(JSON.stringify(initialConversationItem));
         this.openAiWs.send(JSON.stringify({ type: 'response.create' }));
     }
-
+    sendClearToTwilio() {
+        if (this.streamSid && this.connection?.readyState === WebSocket.OPEN) {
+            const clearMessage = {
+                event: "clear",
+                streamSid: this.streamSid
+            };
+            this.connection.send(JSON.stringify(clearMessage));
+            console.log(`[${this.callSessionId}] Sent 'clear' message to Twilio for streamSid ${this.streamSid}`);
+        }
+    }
     handleOpenAIMessage(data) {
         try {
             const response = JSON.parse(data);
@@ -110,6 +144,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     }
                     break;
                 case 'response.audio.delta':
+                    this.isAssistantSpeaking = true;
                     if (response.delta) {
                         const audioDelta = {
                             event: 'media',
@@ -126,14 +161,24 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'input_audio.vad':
                     if (response.status === 'speech_start') {
-                        console.log('User started speaking - interrupting model');
-                        this.openAiWs.send(JSON.stringify({ type: 'response.stop' }));
+                        this.startInactivityTimer();
+                        const now = Date.now();
+                        if (this.isAssistantSpeaking && now - this.lastInterruptionTime > this.interruptCooldownMs) {
+                            console.log('User started speaking - interrupting model');
+                            this.openAiWs.send(JSON.stringify({ type: 'response.stop' }));
+                            this.sendClearToTwilio();
+                            this.lastInterruptionTime = now;
+                        } else {
+                            console.log('Speech_start ignored due to cooldown or model not speaking');
+                        }
                     }
                     break;
                 case 'response.interrupted':
+                    this.isAssistantSpeaking = false;
                     // console.log('Response was interrupted by user');
                     break;
                 case 'response.completed':
+                    this.isAssistantSpeaking = false;
                     console.log('Response completed');
                     this.broadcastToWebClients(JSON.stringify({ type: 'ava_done' }))
                     break;
@@ -152,6 +197,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (data.event) {
                 case 'media':
                     if (this.openAiWs.readyState === WebSocket.OPEN) this.openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.media.payload }));
+                    this.startInactivityTimer();
                     break;
                 case 'start':
                     this.streamSid = data.start.streamSid;
@@ -177,9 +223,20 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         }
     }
     disconnect() {
-        if (this.openAiWs && this.openAiWs.readyState === WebSocket.OPEN) {
-            this.openAiWs.close();
+        if (this.openAiWs?.readyState === WebSocket.OPEN) this.openAiWs.close();
+        if (this.inactivityTimeout) {
+            clearTimeout(this.inactivityTimeout);
+            this.inactivityTimeout = null;
         }
-        console.log('Client disconnected.');
+        // Send 'stop' event to Twilio to explicitly end the call
+        if (this.connection?.readyState === WebSocket.OPEN && this.streamSid) {
+            const stopMessage = {
+                event: 'stop',
+                streamSid: this.streamSid
+            };
+            this.connection.send(JSON.stringify(stopMessage));
+            console.log(`[${this.callSessionId}] Sent stop signal to Twilio.`);
+        }
+        console.log(`[${this.callSessionId}] Client disconnected.`);
     }
 }
