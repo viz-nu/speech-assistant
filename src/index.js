@@ -16,7 +16,7 @@ import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 import { analyzeConversation } from './utils/openAi.js';
 import { CallSession } from './models/sessionData.js';
 import { makeCallUsingExotel } from './utils/exotel.js';
-import { jsonArrayToHtmlTable } from './utils/Emailer.js';
+import { jsonArrayToHtmlTable, sendMail } from './utils/Emailer.js';
 // Initialize Fastify
 const fastify = Fastify({ logger: { level: NODE_ENV === 'production' ? 'info' : "debug" } });
 fastify.register(fastifyFormBody);
@@ -27,7 +27,7 @@ fastify.get('/health', async (request, reply) => { return { status: 'ok', worker
 // POST endpoint to initiate calls
 fastify.post('/call', async (request, reply) => {
     try {
-        const { phoneNumber, systemMessage, voice = "ash", miscData=[] } = request.body;
+        const { phoneNumber, systemMessage, voice = "ash", miscData = [] } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
         const data = { phoneNumber, voice, provider: "openai", telephonyProvider: "twilio", transcripts: [], misc: {}, conclusion: miscData };
@@ -73,7 +73,7 @@ fastify.get('/call-summary', async (request, reply) => {
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
         const html = jsonArrayToHtmlTable(summary);
         const text = summary.map(item => `${item.key.toUpperCase()}:\nDescription: ${item.description}\nType: ${item.type}\nConstraints: ${item.constraints}\nValue: ${typeof item.value === 'object' ? JSON.stringify(item.value, null, 2) : item.value}\n\n`).join('');
-        sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: "Conclusions derived from conversation in structured format", text, html });
+        sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: `Conclusions derived from conversation in structured format sessionId:${session._id}`, text, html });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);
