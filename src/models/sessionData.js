@@ -71,7 +71,7 @@ const CallSessionSchema = new mongoose.Schema({
 ### Reminder:
 -You're on voice — listen, speak clearly , and guide the conversation step by step. Be helpful and human.
 -Talk about the next follow-up step, like booking a meeting with an expert.
-Today’s date: ${new Date()}`
+Today’s date: ${new Date()}, most importantly say "goodbye" when its time to end the call`
   },
   reasonEnded: String,
   outboundTwiML: String,

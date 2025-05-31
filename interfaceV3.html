@@ -467,7 +467,6 @@
         let socket = null;
         let isConnected = false;
         let currentCallActive = false;
-        let lastSummarySessionId = null;
 
         // Initialize WebSocket connection
         function initializeWebSocket() {
@@ -614,10 +613,7 @@
                 console.log('[Call] Call was active, now ending due to disconnection.');
                 endCall();
             }
-            // If sessionId is present, fetch and display the summary
-            if (data && data.sessionId) {
-                fetchCallSummaryAndDisplay();
-            }
+            fetchCallSummaryAndDisplay();
         }
 
         async function fetchCallSummaryAndDisplay() {
@@ -834,7 +830,7 @@
                 callBtn.onclick = initiateCall;
             }
             const refreshBtn = document.getElementById('refreshSummaryBtn');
-            if (refreshBtn) refreshBtn.onclick = () => fetchCallSummaryAndDisplay(localStorage.getItem("sessionId"));
+            if (refreshBtn) refreshBtn.onclick = () => fetchCallSummaryAndDisplay();
         });
 
         // --- Update initiateCall to include miscData ---
@@ -872,7 +868,6 @@
                     currentCallActive = true;
                     callStatus.classList.add('active');
                     localStorage.setItem("sessionId", data.data._id)
-                    console.log("setItem sessionId", data.data._id);
                     document.getElementById('transcriptMessages').innerHTML = '';
                     document.getElementById('transcriptContainer').classList.add('active');
 

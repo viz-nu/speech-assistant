@@ -8,7 +8,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.openAiWs = null;
         this.callSessionId = config.callSessionId;
         this.VOICE = config.voice || 'echo';
-        this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant.';
+        this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant. say "goodbye" when its time to end the call';
         this.OPEN_API_KEY = config.apiKey;
         this.MODEL = config.model || 'gpt-4o-realtime-preview-2024-10-01';
         this.streamSid = config.streamSid;
@@ -52,9 +52,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.log(`[${this.callSessionId}] Disconnected from OpenAI Realtime API:`, code, reason?.toString());
             this.connected = false;
             // Attempt reconnection if unexpected closure
-            if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                this.attemptReconnect();
-            }
+            if (this.reconnectAttempts < this.maxReconnectAttempts) this.attemptReconnect();
         });
         this.openAiWs.on('error', (error) => {
             console.error(`[${this.callSessionId}] Error in OpenAI WebSocket:`, error);
@@ -64,7 +62,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     async attemptReconnect() {
         this.reconnectAttempts++;
         console.log(`[${this.callSessionId}] Attempting to reconnect to OpenAI (attempt ${this.reconnectAttempts})`);
-
         try {
             await this.connect(this.connection);
         } catch (error) {
@@ -124,22 +121,17 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (response.type) {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (response.transcript.trim()) {
-                        console.log(`User Said:`, response.transcript.trim().toLowerCase());
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => console.error('Error saving user transcript:', error));
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
-                        if (response.transcript.toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
-                            console.log(`[${this.callSessionId}] User said a goodbye message.`, response.transcript.toLowerCase());
-                            // i want to cut the phone call here
-                            cutTheCall(this.callSid, this.telephonyProvider);
-                            console.log("stop connection triggered");
-                        }
                     }
                     break;
                 case 'response.audio_transcript.done':
                     if (response.transcript.trim()) {
-                        console.log(`Assistant Said:`, response.transcript.trim().toLowerCase());
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript } } }).catch((error) => console.error('Error saving assistant transcript:', error));
                         this.broadcastToWebClients({ type: 'ava_response', text: response.transcript });
+                        if (response.transcript.trim().toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
+                            this.disconnect('agent thought its good time to say goodbye');
+                        }
                     }
                     break;
                 case 'response.audio.delta':
@@ -233,6 +225,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.connected = false;
         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: reason || 'user_disconnect' }).catch(error => console.error(error));
         console.log(`[${this.callSessionId}] Client disconnected.`);
+        cutTheCall(this.callSid, this.telephonyProvider);
         if (this.broadcastToWebClients) {
             this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
             this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: this.callSessionId });

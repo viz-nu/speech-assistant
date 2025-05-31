@@ -27,7 +27,9 @@ export const cutTheCallUsingTwilio = async (callSid) => {
         throw error;
     }
 }
-export const cutTheCall = async (callSid, telephonyProvider = "twilio") => {
+export const cutTheCall = async (callSid, telephonyProvider = 'twilio') => {
     if (telephonyProvider === 'twilio') await cutTheCallUsingTwilio(callSid);
-    throw new Error('Unsupported telephony provider');
+    else {
+        throw new Error('Unsupported telephony provider');
+    }
 }
