@@ -63,13 +63,6 @@ export function setupWebSocketRoutes(fastify) {
             handler.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
             handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: sessionId });
           }
-          // Update session status in database
-          if (sessionId) {
-            await CallSession.findByIdAndUpdate(sessionId, {
-              status: 'completed',
-              endTime: new Date()
-            });
-          }
         });
       } catch (error) {
         console.error(`Error setting up handler:`, error);

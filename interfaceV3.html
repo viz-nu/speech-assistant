@@ -539,13 +539,15 @@
 
         // Handle all incoming socket messages
         function handleSocketMessage(data) {
-            //   {"type":"user_transcript","text":"Cool, I love the way you speak and I'm testing right now. So I hope this is working good\n"}
-            //  {"type":"ava_response","text":"Thank you for the kind words! I'm glad you like it. It sounds like everything is working well on your end. How can I assist you with your educational journey today?"}
+            // Log all incoming WebSocket events
+            console.log('[WebSocket Event]', data.type, data);
             switch (data.type) {
                 case 'user_transcript':
+                    console.log('[Transcript Event] user_transcript:', data.text);
                     handleTranscript({ message: data.text, speaker: 'user' });
                     break;
                 case 'ava_response':
+                    console.log('[Transcript Event] ava_response:', data.text);
                     handleTranscript({ message: data.text, speaker: 'assistant' });
                     break;
                 case 'clientConnected':
@@ -569,11 +571,12 @@
                     handleSocketError(data);
                     break;
                 default:
-                    console.warn('[Handler] Unknown message type:', data.type);
+                    console.warn('[Handler] Unknown message type:', data.type, data);
             }
         }
 
         function handleTranscript(data) {
+            console.log('[Transcript Render]', data.speaker, data.message);
             const transcriptContainer = document.getElementById('transcriptContainer');
             const transcriptMessages = document.getElementById('transcriptMessages');
 
@@ -618,14 +621,15 @@
 
         async function fetchCallSummaryAndDisplay() {
             let lastSummarySessionId = localStorage.getItem("sessionId");
-            if (!lastSummarySessionId) {
-                console.warn('[Summary] No session ID found in localStorage.');
-                return;
-            }
             const summaryContainer = document.getElementById('summaryContainer');
             const callSummary = document.getElementById('callSummary');
             const refreshBtn = document.getElementById('refreshSummaryBtn');
             summaryContainer.style.display = 'block';
+            if (!lastSummarySessionId) {
+                callSummary.innerHTML = '<div style="background:#fee2e2; color:#b91c1c; padding:1rem; border-radius:0.5rem; font-weight:500;">No recent call session found. Please initiate a call to view its summary.</div>';
+                if (refreshBtn) refreshBtn.style.display = 'none';
+                return;
+            }
             callSummary.textContent = 'Fetching call summary...';
             if (refreshBtn) {
                 refreshBtn.style.display = 'inline-block';
@@ -635,7 +639,6 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/call-summary?sessionId=${encodeURIComponent(lastSummarySessionId)}`);
                 const result = await response.json();
-                // const result = { "success": true, "message": "summary extracted", "data": [{ "key": "client_name", "description": "Name of the client", "type": "string", "constraints": "Not empty", "value": "Not mentioned" }, { "key": "study_destination", "description": "Preferred country for study abroad", "type": "string", "constraints": "One of the countries discussed or open to suggestions", "value": "United States" }, { "key": "field_of_study", "description": "Field or subject client wants to study", "type": "string", "constraints": "Relevant academic field", "value": "Artificial Intelligence" }, { "key": "start_year", "description": "Year client plans to start studies", "type": "integer", "constraints": "Valid year", "value": 2026 }, { "key": "academic_profile", "description": "Client's academic background and scores", "type": "object", "constraints": "Includes academic percentage, GRE score, TOEFL score, and background", "value": { "background": "IT engineering", "academic_percentage": 80, "GRE_score": 326, "TOEFL_score": 112 } }, { "key": "universities_considered", "description": "List of universities suggested or considered by client", "type": "array", "constraints": "List of university names", "value": ["Massachusetts Institute of Technology (MIT)", "Stanford University", "Carnegie Mellon University", "University of California, Berkeley", "University of Illinois at Urbana-Champaign", "University of Southern California", "Northeastern University", "Arizona State University", "Australian National University", "University of Melbourne", "University of New South Wales", "Trinity College Dublin", "University College Dublin"] }] }               
                 if (result.success && result.data) {
                     if (typeof result.data === 'object') {
                         callSummary.innerHTML = renderSummaryTable(result.data);
@@ -643,10 +646,10 @@
                         callSummary.textContent = result.data;
                     }
                 } else {
-                    callSummary.textContent = 'Could not fetch summary.';
+                    callSummary.innerHTML = '<div style="background:#fee2e2; color:#b91c1c; padding:1rem; border-radius:0.5rem; font-weight:500;">Could not fetch summary. Please try again after a call.</div>';
                 }
             } catch (err) {
-                callSummary.textContent = 'Error fetching summary.';
+                callSummary.innerHTML = '<div style="background:#fee2e2; color:#b91c1c; padding:1rem; border-radius:0.5rem; font-weight:500;">Error fetching summary. Please check your connection or try again later.</div>';
             }
         }
 
@@ -837,6 +840,9 @@
         async function initiateCall(event) {
             event.preventDefault();
 
+            // Clear any previous sessionId before starting a new call
+            localStorage.removeItem('sessionId');
+
             const phoneNumber = document.getElementById('phoneNumber').value;
             const systemMessage = document.getElementById('systemMessage').value;
             const voice = document.getElementById('voice').value;
@@ -921,6 +927,11 @@
             const textarea = document.getElementById('systemMessage');
             textarea.value = '';
             textarea.focus();
+        }
+
+        // Optionally, add a helper to clear sessionId manually
+        function clearSessionId() {
+            localStorage.removeItem('sessionId');
         }
 
     </script>
