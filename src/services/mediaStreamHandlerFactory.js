@@ -11,7 +11,6 @@ const providerConfigs = {
         callSessionId: "",
         apiKey: process.env.OPEN_API_KEY,
         voice: 'ash',
-        systemMessage: SYSTEM_MESSAGE,
         model: 'gpt-4o-realtime-preview-2024-10-01'
     },
     // deepgram: {
@@ -50,7 +49,14 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             console.error(`Session with ID ${sessionId} not found`);
             return { status: false, message: 'Session not found' };
         }
-        handler = MediaStreamHandlerFactory.create(provider = session.provider, { ...providerConfigs[provider], welcomeMessage: session.welcomeMessage, callSessionId: session.callSessionId, voice: session.voice || providerConfigs[provider].voice, systemMessage: session.systemMessage || providerConfigs[provider].systemMessage, streamSid: parsed.start.streamSid });
+        handler = MediaStreamHandlerFactory.create(provider = session.provider, {
+            ...providerConfigs[provider],
+            welcomeMessage: session.welcomeMessage,
+            callSessionId: session.callSessionId,
+            voice: session.voice || providerConfigs[provider].voice,
+            systemMessage: session.systemMessage || providerConfigs[provider].systemMessage,
+            streamSid: parsed.start.streamSid
+        });
         await handler.connect(connection);
         session.status = "active"
         session.save();
