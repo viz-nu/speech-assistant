@@ -18,7 +18,7 @@ export function setupWebSocketRoutes(fastify) {
   fastify.register(async (fastify) => {
     // Setup WebSocket server for handling media streams
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
-      let sessionId, handler, activeSession = false;
+      let sessionId, handler, activeSession = false, callSid;
       try {
         connection.on('message', async (message) => {
           try {
