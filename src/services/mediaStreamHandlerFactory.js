@@ -54,7 +54,7 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             welcomeMessage: session.welcomeMessage,
             callSessionId: session.callSessionId,
             voice: session.voice || providerConfigs[session.provider].voice,
-            systemMessage: session.systemMessage || providerConfigs[provider].systemMessage,
+            systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage,
             streamSid: parsed.start.streamSid
         });
         await handler.connect(connection);
