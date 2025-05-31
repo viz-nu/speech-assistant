@@ -38,7 +38,7 @@ const toZodSchema = (schemaArray) => {
 /**
  * Analyze conversation and return structured output
  */
-export const analyzeConversation = async (conversation, schema = null, apiKey) => {
+export const analyzeConversation = async (conversation, schema = [], apiKey) => {
     const effectiveSchema = Array.isArray(schema) && schema.length ? schema : fallbackSchema;
     const zodSchema = toZodSchema(effectiveSchema);
 
