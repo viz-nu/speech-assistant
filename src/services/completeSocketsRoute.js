@@ -42,8 +42,6 @@ export function setupWebSocketRoutes(fastify) {
                 await handler.connect(connection);
                 activeSession = true;
                 handler.broadcastToWebClients({ type: 'callStatus', text: "active" });
-                // Now that we're set up, handle the current message
-                handler.handleIncomingMessage(message);
               } catch (err) {
                 console.error(`Error setting up session ${sessionId}:`, err);
                 connection.close();
