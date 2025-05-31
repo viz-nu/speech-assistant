@@ -26,3 +26,45 @@ export class BaseMediaStreamHandler {
         this.broadcastToWebClients = broadcastToWebClients;
     }
 }
+
+export class TelephonyAdapter {
+    constructor(connection, sessionId) {
+        this.connection = connection;
+        this.callSessionId = sessionId;
+        this.streamSid = null;
+    }
+
+    // Incoming messages
+    handleIncomingMessage(message) {
+        throw new Error('Not implemented');
+    }
+
+    // Outgoing
+    sendMedia(base64Audio) {
+        throw new Error('Not implemented');
+    }
+
+    sendMark(mark) {
+        throw new Error('Not implemented');
+    }
+
+    sendClear() {
+        throw new Error('Not implemented');
+    }
+
+    sendStop() {
+        throw new Error('Not implemented');
+    }
+
+    _send(data) {
+        try {
+            this.connection.send(JSON.stringify(data));
+        } catch (err) {
+            console.error(`[${this.callSessionId}] Send error:`, err);
+        }
+    }
+
+    isConnected() {
+        return this.connection && this.connection.readyState === this.connection.OPEN;
+    }
+}

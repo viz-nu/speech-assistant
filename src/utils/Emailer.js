@@ -40,10 +40,8 @@ export const sendMail = async (emailData) => {
 export const jsonArrayToHtmlTable = (data) => {
     let html = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-family: Arial; width: 100%;">';
     html += '<thead><tr><th>Key</th><th>Description</th><th>Type</th><th>Constraints</th><th>Value</th></tr></thead><tbody>';
-
     for (const item of data) {
         let value = item.value;
-
         if (Array.isArray(value)) {
             value = `<ul>${value.map(v => `<li>${v}</li>`).join('')}</ul>`;
         } else if (typeof value === 'object' && value !== null) {
@@ -51,7 +49,6 @@ export const jsonArrayToHtmlTable = (data) => {
                 Object.entries(value).map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${v}</td></tr>`).join('') +
                 '</table>';
         }
-
         html += `<tr>
             <td>${item.key}</td>
             <td>${item.description}</td>

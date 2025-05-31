@@ -212,6 +212,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'stop':
                     console.log('user disconnected the call');
+                    this.disconnect('user_disconnect');
                     break;
                 default:
                     console.log('Received non-media event:', data.event);
@@ -222,7 +223,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.error('Error parsing message:', error, 'Message:', message);
         }
     }
-    disconnect() {
+    disconnect(reason) {
         if (this.openAiWs?.readyState === WebSocket.OPEN) this.openAiWs.close();
         if (this.inactivityTimeout) {
             clearTimeout(this.inactivityTimeout);
@@ -237,6 +238,16 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             this.connection.send(JSON.stringify(stopMessage));
             console.log(`[${this.callSessionId}] Sent stop signal to Twilio.`);
         }
+        this.connected = false;
+        CallSession.findByIdAndUpdate(this.callSessionId, {
+            status: 'completed',
+            endTime: new Date(),
+            reasonEnded: reason || 'user_disconnect'
+        }).catch(console.error);
         console.log(`[${this.callSessionId}] Client disconnected.`);
+        if (this.broadcastToWebClients) {
+            this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
+            this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: this.callSessionId });
+        }
     }
 }

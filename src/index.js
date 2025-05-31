@@ -30,7 +30,7 @@ fastify.post('/call', async (request, reply) => {
         const { phoneNumber, systemMessage, voice = "ash", miscData } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
-        const session = await CallSession.create({ phoneNumber, voice, systemMessage, provider: "openai", transcripts: [], misc: {}, conclusion: miscData });
+        const session = await CallSession.create({ phoneNumber, voice, systemMessage, provider: "openai", telephonyProvider: "twilio", transcripts: [], misc: {}, conclusion: miscData });
         const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
         const sanitizedCall = JSON.parse(JSON.stringify(call));
         await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
