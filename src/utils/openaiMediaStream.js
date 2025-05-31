@@ -124,12 +124,13 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => console.error('Error saving user transcript:', error));
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
                         if (response.transcript.toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
-                            console.log(`[${this.callSessionId}] User ended the call with a goodbye message.`);
+                            console.log(`[${this.callSessionId}] User said a goodbye message.`, response.transcript.toLowerCase());
                             const stopMessage = {
                                 event: 'stop',
                                 streamSid: this.streamSid
                             };
                             this.connection.send(JSON.stringify(stopMessage));
+                            console.log("stop connection triggered");
                         }
                     }
                     break;
