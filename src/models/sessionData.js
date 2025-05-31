@@ -7,6 +7,7 @@ const TranscriptSchema = new mongoose.Schema({
 
 const CallSessionSchema = new mongoose.Schema({
   callSessionId: String,
+  streamSid: String,
   provider: { type: String, default: "openai" },
   telephonyProvider: { type: String, default: "twilio" },
   duration: Number,

@@ -123,6 +123,14 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     if (response.transcript.trim()) {
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => console.error('Error saving user transcript:', error));
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
+                        if (response.transcript.toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
+                            console.log(`[${this.callSessionId}] User ended the call with a goodbye message.`);
+                            const stopMessage = {
+                                event: 'stop',
+                                streamSid: this.streamSid
+                            };
+                            this.connection.send(JSON.stringify(stopMessage));
+                        }
                     }
                     break;
                 case 'response.audio_transcript.done':
@@ -187,7 +195,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'start':
                     this.streamSid = data.start.streamSid;
-                    CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { startTime: new Date(), status: 'active', twilioStreamSid: this.streamSid })
+                    CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { startTime: new Date(), status: 'active', streamSid: this.streamSid })
                     console.log('user attended the call', this.streamSid);
                     break;
                 case 'stop':

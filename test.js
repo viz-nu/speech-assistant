@@ -19,11 +19,11 @@ import WebSocket from 'ws';
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
         super(config);
-        
+
         // Connection instances
         this.openAiWs = null;
         this.connection = null; // Twilio WebSocket connection
-        
+
         // Configuration
         this.callSessionId = config.callSessionId;
         this.streamSid = config.streamSid;
@@ -31,21 +31,21 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant.';
         this.OPEN_API_KEY = config.apiKey;
         this.MODEL = config.model || 'gpt-4o-realtime-preview-2024-10-01';
-        
+
         // State management
         this.connected = false;
         this.isAssistantSpeaking = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
-        
+
         // Interruption handling
         this.lastInterruptionTime = 0;
         this.interruptCooldownMs = 1000; // 1 second cooldown
-        
+
         // Inactivity management
         this.inactivityTimeout = null;
         this.inactivityDurationMs = 5000; // 5 seconds
-        
+
         // External broadcast function
         this.broadcastToWebClients = null;
     }
@@ -54,7 +54,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
      */
     _handleAudioDelta(response) {
         this.isAssistantSpeaking = true;
-        
+
         if (response.delta && this._isTwilioConnected()) {
             this._sendAudioToTwilio(response.delta);
         }
@@ -65,11 +65,11 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
      */
     _handleSpeechStart() {
         this._resetInactivityTimer();
-        
+
         const now = Date.now();
-        const canInterrupt = this.isAssistantSpeaking && 
-                           (now - this.lastInterruptionTime > this.interruptCooldownMs);
-        
+        const canInterrupt = this.isAssistantSpeaking &&
+            (now - this.lastInterruptionTime > this.interruptCooldownMs);
+
         if (canInterrupt) {
             console.log(`[${this.callSessionId}] User interrupted - stopping model response`);
             this._interruptOpenAIResponse();
@@ -153,20 +153,20 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     handleIncomingMessage(message) {
         try {
             const data = JSON.parse(message);
-            
+
             switch (data.event) {
                 case 'media':
                     this._handleTwilioMedia(data);
                     break;
-                    
+
                 case 'start':
                     this._handleTwilioStart(data);
                     break;
-                    
+
                 case 'stop':
                     this._handleTwilioStop();
                     break;
-                    
+
                 default:
                     console.log(`[${this.callSessionId}] Unhandled Twilio event: ${data.event}`);
                     break;
@@ -189,11 +189,11 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
      */
     _handleTwilioStart(data) {
         this.streamSid = data.start.streamSid;
-        
+
         this._updateCallSession({
             startTime: new Date(),
             status: 'active',
-            twilioStreamSid: this.streamSid
+            streamSid: this.streamSid
         });
 
         console.log(`[${this.callSessionId}] User attended the call - StreamSid: ${this.streamSid}`);
@@ -263,9 +263,9 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
      * Broadcast error to web clients
      */
     _broadcastError(message) {
-        this._broadcastToWebClients({ 
-            type: 'error', 
-            message 
+        this._broadcastToWebClients({
+            type: 'error',
+            message
         });
     }
 
@@ -274,7 +274,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
      */
     async _endCall(reason) {
         this._clearInactivityTimer();
-        
+
         // Close OpenAI connection
         if (this._isOpenAIConnected()) {
             this.openAiWs.close();
