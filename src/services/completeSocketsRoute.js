@@ -75,7 +75,7 @@ export function setupWebSocketRoutes(fastify) {
           }
         });
       } catch (error) {
-        console.error(`Error setting up ${PROVIDER} handler:`, error);
+        console.error(`Error setting up handler:`, error);
         connection.close();
         handler.broadcastToWebClients({ type: 'callStatus', status: "inactive" });
         handler.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: sessionId });
