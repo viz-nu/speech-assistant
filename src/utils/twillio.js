@@ -19,3 +19,15 @@ export const makeCallUsingTwilio = async (session) => {
         throw error;
     }
 }
+export const cutTheCallUsingTwilio = async (callSid) => {
+    try {
+        await client.calls(callSid).update({ status: 'completed' });
+    } catch (error) {
+        console.error('Error cutting the call:', error);
+        throw error;
+    }
+}
+export const cutTheCall = async (callSid, telephonyProvider = "twilio") => {
+    if (telephonyProvider === 'twilio') await cutTheCallUsingTwilio(callSid);
+    throw new Error('Unsupported telephony provider');
+}

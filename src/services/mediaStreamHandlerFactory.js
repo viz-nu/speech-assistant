@@ -56,7 +56,8 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             callSessionId: session.callSessionId,
             voice: session.voice || providerConfigs[session.provider].voice,
             systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage,
-            streamSid
+            streamSid,
+            telephonyProvider: session.telephonyProvider || "twilio"
         });
         await handler.connect(connection);
         session.status = "active"

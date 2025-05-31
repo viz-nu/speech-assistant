@@ -1,6 +1,7 @@
 import { CallSession } from '../models/sessionData.js';
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
+import { cutTheCall } from './twillio.js';
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
         super(config);
@@ -11,6 +12,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.OPEN_API_KEY = config.apiKey;
         this.MODEL = config.model || 'gpt-4o-realtime-preview-2024-10-01';
         this.streamSid = config.streamSid;
+        this.telephonyProvider = config.telephonyProvider || "twilio";
         this.broadcastToWebClients = null;
         this.connected = false;
         this.isAssistantSpeaking = false;
@@ -121,21 +123,20 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (response.type) {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (response.transcript.trim()) {
+                        console.log(`User Said:`, response.transcript.trim().toLowerCase());
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => console.error('Error saving user transcript:', error));
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
                         if (response.transcript.toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
                             console.log(`[${this.callSessionId}] User said a goodbye message.`, response.transcript.toLowerCase());
-                            const stopMessage = {
-                                event: 'stop',
-                                streamSid: this.streamSid
-                            };
-                            this.connection.send(JSON.stringify(stopMessage));
+                            // i want to cut the phone call here
+                            cutTheCall(this.streamSid, this.telephonyProvider);
                             console.log("stop connection triggered");
                         }
                     }
                     break;
                 case 'response.audio_transcript.done':
                     if (response.transcript.trim()) {
+                        console.log(`Assistant Said:`, response.transcript.trim().toLowerCase());
                         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript } } }).catch((error) => console.error('Error saving assistant transcript:', error));
                         this.broadcastToWebClients({ type: 'ava_response', text: response.transcript });
                     }
