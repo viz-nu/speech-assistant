@@ -20,7 +20,6 @@ export function setupWebSocketRoutes(fastify) {
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
       let sessionId, handler, activeSession = false;
       try {
-        console.log("connection:", JSON.stringify(connection, null, 2));
         connection.on('message', async (message) => {
           try {
             const parsed = JSON.parse(message);
