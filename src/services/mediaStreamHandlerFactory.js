@@ -43,7 +43,7 @@ export class MediaStreamHandlerFactory {
 
 export const initiateConnectionBetweenUserAndProvider = async (config) => {
     try {
-        const { sessionId, connection, streamSid } = config;
+        const { sessionId, connection, streamSid, callSid } = config;
         const session = await CallSession.findById(sessionId);
         if (!session) {
             console.error(`Session with ID ${sessionId} not found`);
@@ -57,7 +57,8 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             voice: session.voice || providerConfigs[session.provider].voice,
             systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage,
             streamSid,
-            telephonyProvider: session.telephonyProvider || "twilio"
+            telephonyProvider: session.telephonyProvider || "twilio",
+            callSid
         });
         await handler.connect(connection);
         session.status = "active"

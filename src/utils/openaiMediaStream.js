@@ -22,6 +22,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.interruptCooldownMs = 1000; // 1 second cooldown
         this.inactivityTimeout = null;
         this.inactivityDurationMs = 5000; // 5 seconds
+        this.callSid = config.callSid || null; // Optional callSid for Twilio
     }
     startInactivityTimer() {
         if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
@@ -129,7 +130,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         if (response.transcript.toLowerCase().includes('goodbye') || response.transcript.toLowerCase().includes('bye')) {
                             console.log(`[${this.callSessionId}] User said a goodbye message.`, response.transcript.toLowerCase());
                             // i want to cut the phone call here
-                            cutTheCall(this.streamSid, this.telephonyProvider);
+                            cutTheCall(this.callSid, this.telephonyProvider);
                             console.log("stop connection triggered");
                         }
                     }

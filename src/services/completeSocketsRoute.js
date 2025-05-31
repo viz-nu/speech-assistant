@@ -25,13 +25,14 @@ export function setupWebSocketRoutes(fastify) {
             const parsed = JSON.parse(message);
             if (parsed.event === 'start' && !activeSession) {
               sessionId = parsed.start.customParameters?.sessionId;
+              callSid = parsed.start.callSid;
               if (!sessionId) {
                 console.error('No session ID provided in connection metadata');
                 connection.close();
                 return;
               }
               try {
-                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid })
+                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid, callSid })
                 if (!status) {
                   console.error(message);
                   connection.close();
