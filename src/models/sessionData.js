@@ -12,7 +12,7 @@ const CallSessionSchema = new mongoose.Schema({
   duration: Number,
   welcomeMessage: { type: String, default: "Hello this is AVA, how can I help you?" },
   startTime: { type: Date, default: Date.now },
-  conclusion: mongoose.Schema.Types.Mixed,
+  conclusion: Array,
   concluded: { type: Boolean, default: false },
   endTime: Date,
   status: String,

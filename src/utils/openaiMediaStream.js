@@ -121,17 +121,13 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (response.type) {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (response.transcript.trim()) {
-                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => {
-                            console.error('Error saving user transcript:', error);
-                        });
+                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "user", message: response.transcript } } }).catch((error) => console.error('Error saving user transcript:', error));
                         this.broadcastToWebClients({ type: 'user_transcript', text: response.transcript });
                     }
                     break;
                 case 'response.audio_transcript.done':
                     if (response.transcript.trim()) {
-                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript } } }).catch((error) => {
-                            console.error('Error saving assistant transcript:', error);
-                        });
+                        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { $push: { transcripts: { speaker: "assistant", message: response.transcript } } }).catch((error) => console.error('Error saving assistant transcript:', error));
                         this.broadcastToWebClients({ type: 'ava_response', text: response.transcript });
                     }
                     break;
@@ -141,9 +137,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         const audioDelta = {
                             event: 'media',
                             streamSid: this.streamSid,
-                            media: {
-                                payload: Buffer.from(response.delta, 'base64').toString('base64')
-                            }
+                            media: { payload: Buffer.from(response.delta, 'base64').toString('base64') }
                         };
                         this.connection.send(JSON.stringify(audioDelta));
                     }

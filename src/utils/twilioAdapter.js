@@ -1,4 +1,4 @@
-import { TelephonyAdapter } from "../services/baseMediaStreamHandler";
+import { TelephonyAdapter } from "../services/baseMediaStreamHandler.js";
 
 export class TwilioAdapter extends TelephonyAdapter {
     handleIncomingMessage(message) {

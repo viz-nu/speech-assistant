@@ -27,7 +27,7 @@ fastify.get('/health', async (request, reply) => { return { status: 'ok', worker
 // POST endpoint to initiate calls
 fastify.post('/call', async (request, reply) => {
     try {
-        const { phoneNumber, systemMessage, voice = "ash", miscData } = request.body;
+        const { phoneNumber, systemMessage, voice = "ash", miscData=[] } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
         // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
         const data = { phoneNumber, voice, provider: "openai", telephonyProvider: "twilio", transcripts: [], misc: {}, conclusion: miscData };
@@ -65,11 +65,15 @@ fastify.get('/call-summary', async (request, reply) => {
         const session = await CallSession.findById(sessionId, "transcripts conclusion concluded");
         if (!session) return reply.code(404).send({ error: 'Session not found', message: 'No session found with the provided ID' });
         if (session.concluded) return reply.code(200).send({ success: true, message: `summary extracted`, data: session.conclusion });
+        const schema = session.conclusion; // assuming schema was stored here
+        if (!Array.isArray(schema)) {
+            return reply.code(500).send({ error: 'Schema format invalid', message: 'Expected conclusion to be an array schema before processing' });
+        }
         const summary = await analyzeConversation(session.transcripts, session.conclusion, OPEN_API_KEY);
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
         const html = jsonArrayToHtmlTable(summary);
         const text = summary.map(item => `${item.key.toUpperCase()}:\nDescription: ${item.description}\nType: ${item.type}\nConstraints: ${item.constraints}\nValue: ${typeof item.value === 'object' ? JSON.stringify(item.value, null, 2) : item.value}\n\n`).join('');
-        await sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: "Conclusions derived from conversation in structured format", text, html });
+        sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: "Conclusions derived from conversation in structured format", text, html });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);

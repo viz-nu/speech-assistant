@@ -471,7 +471,7 @@
 
         // Initialize WebSocket connection
         function initializeWebSocket() {
-            // fetchCallSummaryAndDisplay()
+            fetchCallSummaryAndDisplay()
             const statusBadge = document.getElementById('statusBadge');
             const connectionStatus = document.getElementById('connectionStatus');
             const callBtn = document.getElementById('callBtn');
@@ -621,7 +621,8 @@
         }
 
         async function fetchCallSummaryAndDisplay(sessionId) {
-            lastSummarySessionId = sessionId;
+            let lastSummarySessionId = localStorage.getItem("sessionId");
+            console.log("sessionID in summary block", { lastSummarySessionId, sessionId });
             const summaryContainer = document.getElementById('summaryContainer');
             const callSummary = document.getElementById('callSummary');
             const refreshBtn = document.getElementById('refreshSummaryBtn');
@@ -633,7 +634,7 @@
                 setTimeout(() => { refreshBtn.disabled = false; }, 1000); // prevent spam
             }
             try {
-                const response = await fetch(`${API_BASE_URL}/call-summary?sessionId=${encodeURIComponent(sessionId)}`);
+                const response = await fetch(`${API_BASE_URL}/call-summary?sessionId=${encodeURIComponent(lastSummarySessionId)}`);
                 const result = await response.json();
                 // const result = { "success": true, "message": "summary extracted", "data": [{ "key": "client_name", "description": "Name of the client", "type": "string", "constraints": "Not empty", "value": "Not mentioned" }, { "key": "study_destination", "description": "Preferred country for study abroad", "type": "string", "constraints": "One of the countries discussed or open to suggestions", "value": "United States" }, { "key": "field_of_study", "description": "Field or subject client wants to study", "type": "string", "constraints": "Relevant academic field", "value": "Artificial Intelligence" }, { "key": "start_year", "description": "Year client plans to start studies", "type": "integer", "constraints": "Valid year", "value": 2026 }, { "key": "academic_profile", "description": "Client's academic background and scores", "type": "object", "constraints": "Includes academic percentage, GRE score, TOEFL score, and background", "value": { "background": "IT engineering", "academic_percentage": 80, "GRE_score": 326, "TOEFL_score": 112 } }, { "key": "universities_considered", "description": "List of universities suggested or considered by client", "type": "array", "constraints": "List of university names", "value": ["Massachusetts Institute of Technology (MIT)", "Stanford University", "Carnegie Mellon University", "University of California, Berkeley", "University of Illinois at Urbana-Champaign", "University of Southern California", "Northeastern University", "Arizona State University", "Australian National University", "University of Melbourne", "University of New South Wales", "Trinity College Dublin", "University College Dublin"] }] }               
                 if (result.success && result.data) {
@@ -832,11 +833,7 @@
             }
 
             const refreshBtn = document.getElementById('refreshSummaryBtn');
-            if (refreshBtn) {
-                refreshBtn.onclick = () => {
-                    if (lastSummarySessionId) fetchCallSummaryAndDisplay(lastSummarySessionId);
-                };
-            }
+            if (refreshBtn) refreshBtn.onclick = () => fetchCallSummaryAndDisplay(localStorage.getItem("sessionId"));
         });
 
         // --- Update initiateCall to include miscData ---
@@ -873,7 +870,8 @@
                 if (data.success) {
                     currentCallActive = true;
                     callStatus.classList.add('active');
-
+                    localStorage.setItem("sessionId", data.data._id)
+                    console.log("setItem sessionId", data.data._id);
                     document.getElementById('transcriptMessages').innerHTML = '';
                     document.getElementById('transcriptContainer').classList.add('active');
 

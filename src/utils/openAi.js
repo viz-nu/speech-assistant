@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const analyzeConversation = async (conversation, conclusion, apiKey) => {
+export const analyzeConversation = async (conversation, schema, apiKey) => {
     const generateSchema = (conclusionArray) => {
         const properties = {};
         conclusionArray.forEach(item => {
@@ -27,7 +27,7 @@ export const analyzeConversation = async (conversation, conclusion, apiKey) => {
     };
     const systemPrompt = `You are a smart assistant that analyzes conversations between a client and a service provider voice-bot. Extract relevant information from the conversation and return it in the structured JSON format.
 For each field in the response:
-${conclusion?.map(item => `- ${item.key}: ${item.description} (${item.type}${item.constraints ? `, ${item.constraints}` : ''})`).join('\n')}
+${schema?.map(item => `- ${item.key}: ${item.description} (${item.type}${item.constraints ? `, ${item.constraints}` : ''})`).join('\n')}
 If any detail is missing in the conversation, set the value to "Not mentioned".
 Current date: ${new Date().toISOString()}`;
     try {
@@ -47,7 +47,7 @@ Current date: ${new Date().toISOString()}`;
                     json_schema: {
                         name: "conversation_analysis",
                         description: "Structured analysis of client-service provider conversation",
-                        schema: generateSchema(conclusion),
+                        schema: generateSchema(schema),
                         strict: true
                     }
                 }
@@ -62,7 +62,7 @@ Current date: ${new Date().toISOString()}`;
         const output = response.data.choices[0].message.content.trim();
         const parsedOutput = JSON.parse(output);
         // Validate that all expected keys are present
-        const expectedKeys = conclusion.map(item => item.key);
+        const expectedKeys = schema.map(item => item.key);
         const returnedKeys = Object.keys(parsedOutput);
 
         if (!expectedKeys.every(key => returnedKeys.includes(key))) {
@@ -80,7 +80,7 @@ Current date: ${new Date().toISOString()}`;
 
         // Return fallback structure with "Not mentioned" values
         const fallbackResponse = {};
-        conclusion.forEach(item => {
+        schema.forEach(item => {
             fallbackResponse[item.key] = "Not mentioned";
         });
 
