@@ -62,7 +62,7 @@ fastify.post('/exotel-call', async (request, reply) => {
 fastify.get('/call-summary', async (request, reply) => {
     try {
         const { sessionId } = request.query;
-        const session = await CallSession.findById(sessionId, "transcripts conclusion concluded");
+        const session = await CallSession.findById(sessionId, "transcripts conclusion concluded phoneNumber");
         if (!session) return reply.code(404).send({ error: 'Session not found', message: 'No session found with the provided ID' });
         if (session.concluded) return reply.code(200).send({ success: true, message: `summary extracted`, data: session.conclusion });
         const schema = session.conclusion; // assuming schema was stored here
@@ -73,7 +73,7 @@ fastify.get('/call-summary', async (request, reply) => {
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
         const html = jsonArrayToHtmlTable(summary);
         const text = summary.map(item => `${item.key.toUpperCase()}:\nDescription: ${item.description}\nType: ${item.type}\nConstraints: ${item.constraints}\nValue: ${typeof item.value === 'object' ? JSON.stringify(item.value, null, 2) : item.value}\n\n`).join('');
-        sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: `Conclusions derived from conversation in structured format sessionId:${session._id}`, text, html });
+        sendMail({ to: "ankit@onewindow.co", cc: "anurag@onewindow.co", bcc: "vishnu.teja101.vt@gmail.com", subject: `Conclusions derived from conversation in structured format Phone:${session.phoneNumber}`, text, html });
         return reply.code(200).send({ success: true, message: `summary extracted`, data: summary });
     } catch (error) {
         fastify.log.error(error);
