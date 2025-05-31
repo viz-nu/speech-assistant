@@ -49,7 +49,7 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             console.error(`Session with ID ${sessionId} not found`);
             return { status: false, message: 'Session not found' };
         }
-        handler = MediaStreamHandlerFactory.create(provider = session.provider, {
+        handler = MediaStreamHandlerFactory.create(session.provider, {
             ...providerConfigs[provider],
             welcomeMessage: session.welcomeMessage,
             callSessionId: session.callSessionId,
