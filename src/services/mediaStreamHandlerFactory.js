@@ -50,10 +50,10 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             return { status: false, message: 'Session not found' };
         }
         handler = MediaStreamHandlerFactory.create(session.provider, {
-            ...providerConfigs[provider],
+            ...providerConfigs[session.provider],
             welcomeMessage: session.welcomeMessage,
             callSessionId: session.callSessionId,
-            voice: session.voice || providerConfigs[provider].voice,
+            voice: session.voice || providerConfigs[session.provider].voice,
             systemMessage: session.systemMessage || providerConfigs[provider].systemMessage,
             streamSid: parsed.start.streamSid
         });
