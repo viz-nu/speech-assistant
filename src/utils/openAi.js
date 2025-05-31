@@ -1,89 +1,96 @@
-import axios from 'axios';
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
+import { z } from "zod";
+const fallbackSchema = [
+    { key: "intent", description: "User's intent", type: "string" },
+    { key: "urgency", description: "How urgent is the request", type: "string" },
+    { key: "client_name", description: "Name of the client", type: "string" },
+    { key: "topics", description: "Main topics discussed", type: "array", items: "string" }
+];
 
-export const analyzeConversation = async (conversation, schema, apiKey) => {
-    const generateSchema = (conclusionArray) => {
-        const properties = {};
-        conclusionArray.forEach(item => {
-            properties[item.key] = {
-                type: item.type === 'string' ? 'string' :
-                    item.type === 'number' ? 'number' :
-                        item.type === 'boolean' ? 'boolean' :
-                            item.type === 'array' ? 'array' : 'string',
-                description: item.description
-            };
-
-            // Add array item type if it's an array
-            if (item.type === 'array' && item.items) {
-                properties[item.key].items = { type: item.items };
-            }
-        });
-
-        return {
-            type: "object",
-            properties: properties,
-            required: conclusionArray.map(item => item.key),
-            additionalProperties: false
-        };
-    };
-    const systemPrompt = `You are a smart assistant that analyzes conversations between a client and a service provider voice-bot. Extract relevant information from the conversation and return it in the structured JSON format.
-For each field in the response:
-${schema?.map(item => `- ${item.key}: ${item.description} (${item.type}${item.constraints ? `, ${item.constraints}` : ''})`).join('\n')}
-If any detail is missing in the conversation, set the value to "Not mentioned".
-Current date: ${new Date().toISOString()}`;
-    try {
-        const response = await axios.post('https://api.openai.com/v1/chat/completions',
-            {
-                model: 'gpt-4o-mini', // Fixed model name
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    {
-                        role: 'user',
-                        content: conversation.map(ele => `${ele.speaker}: ${ele.message}`).join("\n")
-                    }
-                ],
-                temperature: 0.1, // Lower temperature for more consistent output
-                response_format: {
-                    type: "json_schema",
-                    json_schema: {
-                        name: "conversation_analysis",
-                        description: "Structured analysis of client-service provider conversation",
-                        schema: generateSchema(schema),
-                        strict: true
-                    }
-                }
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        const output = response.data.choices[0].message.content.trim();
-        const parsedOutput = JSON.parse(output);
-        // Validate that all expected keys are present
-        const expectedKeys = schema.map(item => item.key);
-        const returnedKeys = Object.keys(parsedOutput);
-
-        if (!expectedKeys.every(key => returnedKeys.includes(key))) {
-            console.warn('Some expected keys are missing from the response');
+/**
+ * Convert custom JSON schema to a Zod schema
+ */
+const toZodSchema = (schemaArray) => {
+    const shape = {};
+    for (const item of schemaArray) {
+        let baseType;
+        switch (item.type) {
+            case "string":
+                baseType = z.string();
+                break;
+            case "number":
+                baseType = z.number();
+                break;
+            case "boolean":
+                baseType = z.boolean();
+                break;
+            case "array":
+                baseType = z.array(z[item.items] ? z[item.items]() : z.string());
+                break;
+            default:
+                baseType = z.string();
         }
-
-        return parsedOutput;
-
-    } catch (error) {
-        console.error('Error analyzing conversation:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-        });
-
-        // Return fallback structure with "Not mentioned" values
-        const fallbackResponse = {};
-        schema.forEach(item => {
-            fallbackResponse[item.key] = "Not mentioned";
-        });
-
-        return fallbackResponse;
+        shape[item.key] = baseType.describe(item.description || "");
     }
-}
+    return z.object(shape);
+};
+/**
+ * Analyze conversation and return structured output
+ */
+export const analyzeConversation = async (conversation, schema = null, apiKey) => {
+    const effectiveSchema = Array.isArray(schema) && schema.length ? schema : fallbackSchema;
+    const zodSchema = toZodSchema(effectiveSchema);
+
+    const systemPrompt = `You are a smart assistant that extracts structured information from conversations.
+Your task is to return the following fields:
+${effectiveSchema.map(item => `- ${item.key}: ${item.description} (${item.type})`).join('\n')}
+If something is not mentioned, write "Not mentioned".`;
+
+    const userMessage = conversation.map(
+        ele => `${ele.speaker}: ${ele.message}`
+    ).join('\n');
+
+    try {
+        const openai = new OpenAI({ apiKey });
+
+        const response = await openai.responses.parse({
+            model: 'gpt-4o-mini',
+            input: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage }
+            ],
+            text: {
+                format: zodTextFormat(zodSchema, "conversation_summary")
+            }
+        });
+
+        const output = response.output_parsed;
+
+        // Reconstruct data in unified shape
+        const structured = effectiveSchema.map(item => ({
+            key: item.key,
+            description: item.description,
+            type: item.type,
+            constraints: item.constraints || "",
+            value: output[item.key] ?? "Not mentioned"
+        }));
+
+        return structured;
+
+    } catch (err) {
+        console.error("Error analyzing conversation:", {
+            message: err.message,
+            cause: err.cause
+        });
+
+        // Fallback values
+        return effectiveSchema.map(item => ({
+            key: item.key,
+            description: item.description,
+            type: item.type,
+            constraints: item.constraints || "",
+            value: "Not mentioned"
+        }));
+    }
+};
