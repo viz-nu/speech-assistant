@@ -23,7 +23,6 @@ export function setupWebSocketRoutes(fastify) {
         connection.on('message', async (message) => {
           try {
             const parsed = JSON.parse(message);
-            console.log("parsed message (check for event):", JSON.stringify(parsed, null, 2));
             if (parsed.event === 'start' && !activeSession) {
               sessionId = parsed.start.customParameters?.sessionId;
               if (!sessionId) {

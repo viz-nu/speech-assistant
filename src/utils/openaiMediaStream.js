@@ -238,12 +238,13 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             this.connection.send(JSON.stringify(stopMessage));
             console.log(`[${this.callSessionId}] Sent stop signal to Twilio.`);
         }
+        this.reconnectAttempts = this.maxReconnectAttempts
         this.connected = false;
         CallSession.findByIdAndUpdate(this.callSessionId, {
             status: 'completed',
             endTime: new Date(),
             reasonEnded: reason || 'user_disconnect'
-        }).catch(console.error);
+        }).catch(error => console.error(error));
         console.log(`[${this.callSessionId}] Client disconnected.`);
         if (this.broadcastToWebClients) {
             this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
