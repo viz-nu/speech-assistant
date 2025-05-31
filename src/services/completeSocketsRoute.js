@@ -32,7 +32,7 @@ export function setupWebSocketRoutes(fastify) {
                 return;
               }
               try {
-                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection })
+                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid })
                 if (!status) {
                   console.error(message);
                   connection.close();
