@@ -30,7 +30,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended due to inactivity", sessionId: this.callSessionId });
             this.disconnect(); // Close OpenAI socket
             if (this.connection && this.connection.readyState === WebSocket.OPEN) this.connection.close(); // Close Twilio socket
-            CallSession.findByIdAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: 'inactivity' }).catch(console.error);
+            CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: 'inactivity' }).catch(console.error);
         }, this.inactivityDurationMs);
     }
 
@@ -193,7 +193,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     break;
                 case 'start':
                     this.streamSid = data.start.streamSid;
-                    CallSession.findByIdAndUpdate({ callSessionId: this.callSessionId }, { startTime: new Date(), status: 'active', twilioStreamSid: this.streamSid })
+                    CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { startTime: new Date(), status: 'active', twilioStreamSid: this.streamSid })
                     console.log('user attended the call', this.streamSid);
                     break;
                 case 'stop':
@@ -226,7 +226,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         }
         this.reconnectAttempts = this.maxReconnectAttempts
         this.connected = false;
-        CallSession.findByIdAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: reason || 'user_disconnect' }).catch(error => console.error(error));
+        CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: reason || 'user_disconnect' }).catch(error => console.error(error));
         console.log(`[${this.callSessionId}] Client disconnected.`);
         if (this.broadcastToWebClients) {
             this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
