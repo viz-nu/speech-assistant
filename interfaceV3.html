@@ -616,13 +616,16 @@
             }
             // If sessionId is present, fetch and display the summary
             if (data && data.sessionId) {
-                fetchCallSummaryAndDisplay(data.sessionId);
+                fetchCallSummaryAndDisplay();
             }
         }
 
-        async function fetchCallSummaryAndDisplay(sessionId) {
+        async function fetchCallSummaryAndDisplay() {
             let lastSummarySessionId = localStorage.getItem("sessionId");
-            console.log("sessionID in summary block", { lastSummarySessionId, sessionId });
+            if (!lastSummarySessionId) {
+                console.warn('[Summary] No session ID found in localStorage.');
+                return;
+            }
             const summaryContainer = document.getElementById('summaryContainer');
             const callSummary = document.getElementById('callSummary');
             const refreshBtn = document.getElementById('refreshSummaryBtn');
@@ -826,12 +829,10 @@
             addMiscPair();
             console.log('[Init] Page loaded, initializing WebSocket...');
             initializeWebSocket();
-
             const callBtn = document.getElementById('callBtn');
             if (callBtn) {
                 callBtn.onclick = initiateCall;
             }
-
             const refreshBtn = document.getElementById('refreshSummaryBtn');
             if (refreshBtn) refreshBtn.onclick = () => fetchCallSummaryAndDisplay(localStorage.getItem("sessionId"));
         });
