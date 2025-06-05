@@ -227,15 +227,17 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             clearTimeout(this.inactivityTimeout);
             this.inactivityTimeout = null;
         }
-        if (this.connection?.readyState === WebSocket.OPEN && this.streamSid) {
-            this.connection.send(JSON.stringify({ event: 'stop', streamSid: this.streamSid }));
-            this.connection.close(1000, reason || 'Call ended');
-        }
         this.reconnectAttempts = this.maxReconnectAttempts
         this.connected = false;
         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: reason || 'user_disconnect' }).catch(error => console.error(error));
         console.log(`[${this.callSessionId}] Client disconnected.`);
-        cutTheCall(this.callSid, this.telephonyProvider)
+        setTimeout(() => {
+            if (this.connection?.readyState === WebSocket.OPEN && this.streamSid) {
+                this.connection.send(JSON.stringify({ event: 'stop', streamSid: this.streamSid }));
+                this.connection.close(1000, reason || 'Call ended');
+            }
+            cutTheCall(this.callSid, this.telephonyProvider)
+        }, 2000);
         if (this.broadcastToWebClients) {
             this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
             this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: this.callSessionId });
