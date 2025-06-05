@@ -58,6 +58,8 @@ export const initiateConnectionBetweenUserAndProvider = async (config) => {
             systemMessage: session.systemMessage || providerConfigs[session.provider].systemMessage,
             streamSid,
             telephonyProvider: session.telephonyProvider || "twilio",
+            inputAudioFormat: session.telephonyProvider == "twilio" ? "g711_ulaw" : "pcm16",
+            outputAudioFormat: session.telephonyProvider == "twilio" ? "g711_ulaw" : "pcm16",
             callSid
         });
         await handler.connect(connection);

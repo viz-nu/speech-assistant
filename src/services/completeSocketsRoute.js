@@ -11,26 +11,22 @@ export const broadcastToWebClients = (payload) => {
 // Configuration
 import { configDotenv } from 'dotenv';
 import { initiateConnectionBetweenUserAndProvider } from './mediaStreamHandlerFactory.js';
-import { CallSession } from '../models/sessionData.js';
 configDotenv();
 
 export function setupWebSocketRoutes(fastify) {
   fastify.register(async (fastify) => {
     // Setup WebSocket server for handling media streams
     fastify.get('/media-stream', { websocket: true }, async (connection, req) => {
-      let sessionId, handler, activeSession = false, callSid;
+      let sessionId, handler, activeSession = false, callSid, source;
       try {
         connection.on('message', async (message) => {
           try {
             const parsed = JSON.parse(message);
             if (parsed.event === 'start' && !activeSession) {
-              sessionId = parsed.start.customParameters?.sessionId;
-              callSid = parsed.start.callSid;
-              if (!sessionId) {
-                console.error('No session ID provided in connection metadata');
-                connection.close();
-                return;
-              }
+              console.log(parsed.start);
+              sessionId = parsed.start.customParameters?.sessionId || parsed.start.custom_parameters?.sessionId;
+              source = parsed.start.customParameters?.source || parsed.start.custom_parameters?.source || 'unknown';
+              callSid = parsed.start.callSid || parsed.start.call_sid;
               try {
                 const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid, callSid })
                 if (!status) {

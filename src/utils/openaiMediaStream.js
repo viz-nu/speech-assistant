@@ -2,6 +2,7 @@ import { CallSession } from '../models/sessionData.js';
 import { BaseMediaStreamHandler } from '../services/baseMediaStreamHandler.js';
 import WebSocket from 'ws';
 import { cutTheCall } from './twillio.js';
+import { resamplePCM } from './resampling.js';
 export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
     constructor(config) {
         super(config);
@@ -11,6 +12,8 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.SYSTEM_MESSAGE = config.systemMessage || 'You are a helpful assistant. say "goodbye" when its time to end the call';
         this.OPEN_API_KEY = config.apiKey;
         this.MODEL = config.model || 'gpt-4o-realtime-preview-2024-10-01';
+        this.input_audio_format = config.inputAudioFormat || 'g711_ulaw';
+        this.output_audio_format = config.outputAudioFormat || 'g711_ulaw';
         this.streamSid = config.streamSid;
         this.telephonyProvider = config.telephonyProvider || "twilio";
         this.broadcastToWebClients = null;
@@ -79,8 +82,8 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                     prefix_padding_ms: 300,
                     silence_duration_ms: 1000,
                 },
-                input_audio_format: 'g711_ulaw',
-                output_audio_format: 'g711_ulaw',
+                input_audio_format: this.input_audio_format,
+                output_audio_format: this.output_audio_format,
                 voice: this.VOICE,
                 instructions: this.SYSTEM_MESSAGE,
                 modalities: ["text", "audio"],
@@ -137,10 +140,16 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 case 'response.audio.delta':
                     this.isAssistantSpeaking = true;
                     if (response.delta) {
+                        let payload = response.delta;
+                        if (this.telephonyProvider === 'exotel') {
+                            const assistantBuffer = Buffer.from(response.delta, 'base64');
+                            const downsampled = resamplePCM(assistantBuffer, 24000, 8000);
+                            payload = downsampled.toString('base64');
+                        }
                         const audioDelta = {
                             event: 'media',
                             streamSid: this.streamSid,
-                            media: { payload: Buffer.from(response.delta, 'base64').toString('base64') }
+                            media: { payload }
                         };
                         this.connection.send(JSON.stringify(audioDelta));
                     }
@@ -179,13 +188,19 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             console.error('Error processing OpenAI message:', error, 'Raw message:', data);
         }
     }
-
     handleIncomingMessage(message) {
         try {
             const data = JSON.parse(message);
             switch (data.event) {
                 case 'media':
-                    if (this.openAiWs.readyState === WebSocket.OPEN) this.openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.media.payload }));
+                    let base64Audio = data.media.payload;
+                    if (this.telephonyProvider === 'exotel') {
+                        const raw8kBuffer = Buffer.from(base64Audio, 'base64');
+                        const resampledBuffer = resamplePCM(raw8kBuffer, 8000, 24000);
+                        base64Audio = resampledBuffer.toString('base64');
+                    }
+                    if (this.openAiWs.readyState === WebSocket.OPEN) this.openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64Audio }));
+                    // if (this.openAiWs.readyState === WebSocket.OPEN) this.openAiWs.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: data.media.payload }));
                     this.startInactivityTimer();
                     break;
                 case 'start':
@@ -212,20 +227,15 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             clearTimeout(this.inactivityTimeout);
             this.inactivityTimeout = null;
         }
-        // Send 'stop' event to Twilio to explicitly end the call
         if (this.connection?.readyState === WebSocket.OPEN && this.streamSid) {
-            const stopMessage = {
-                event: 'stop',
-                streamSid: this.streamSid
-            };
-            this.connection.send(JSON.stringify(stopMessage));
-            console.log(`[${this.callSessionId}] Sent stop signal to Twilio.`);
+            this.connection.send(JSON.stringify({ event: 'stop', streamSid: this.streamSid }));
+            this.connection.close(1000, reason || 'Call ended');
         }
         this.reconnectAttempts = this.maxReconnectAttempts
         this.connected = false;
         CallSession.findOneAndUpdate({ callSessionId: this.callSessionId }, { status: 'completed', endTime: new Date(), reasonEnded: reason || 'user_disconnect' }).catch(error => console.error(error));
         console.log(`[${this.callSessionId}] Client disconnected.`);
-        cutTheCall(this.callSid, this.telephonyProvider);
+        cutTheCall(this.callSid, this.telephonyProvider)
         if (this.broadcastToWebClients) {
             this.broadcastToWebClients({ type: 'callStatus', text: "inactive" });
             this.broadcastToWebClients({ type: 'clientDisconnected', text: "Call ended", sessionId: this.callSessionId });
