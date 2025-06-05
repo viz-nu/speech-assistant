@@ -38,11 +38,11 @@ fastify.post('/call', async (request, reply) => {
             case 'twilio':
                 const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
                 const sanitizedCall = JSON.parse(JSON.stringify(call));
-                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
+                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } }, { new: true });
                 break;
             case 'exotel':
                 const result = await makeCallUsingExotel({ phoneNumber, _id: session._id });
-                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: result.Call.Sid, misc: { exotel: { result } } } });
+                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: result.Call.Sid, misc: { exotel: { result } } } }, { new: true });
                 break;
             default:
                 return reply.code(400).send({ error: 'Invalid telephony provider', message: 'Supported providers are twilio and exotel' });
