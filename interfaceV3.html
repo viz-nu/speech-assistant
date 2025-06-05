@@ -414,6 +414,20 @@
                     </select>
                     <div class="input-hint">Choose the assistant's voice for this call.</div>
                 </div>
+                <div class="form-group">
+                    <label>Telephony Provider</label>
+                    <div style="display:flex; gap:1.5rem; align-items:center;">
+                        <label style="display:flex; align-items:center; gap:0.4rem;">
+                            <input type="radio" name="telephonyProvider" id="providerExotel" value="exotel" checked>
+                            Exotel
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.4rem;">
+                            <input type="radio" name="telephonyProvider" id="providerTwilio" value="twilio">
+                            Twilio
+                        </label>
+                    </div>
+                    <div class="input-hint">Choose which telephony provider to use for the call.</div>
+                </div>
                 <div class="container" id="miscDataContainer">
                     <h2>Conclusions Drawn After the Call (optional)</h2>
                     <div style="color:#4a5568; font-size:0.95rem; margin-bottom:0.5rem;">Add, edit, or remove
@@ -849,6 +863,8 @@
             const btn = document.getElementById('callBtn');
             const callStatus = document.getElementById('callStatus');
             const miscData = collectMiscData();
+            // Get selected telephony provider
+            const telephonyProvider = document.querySelector('input[name=\"telephonyProvider\"]:checked').value;
 
             if (!phoneNumber.trim()) {
                 alert('Please enter a phone number');
@@ -858,13 +874,13 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span><span>Initiating...</span>';
 
-            console.log('[Call] Initiating call to:', phoneNumber, 'with voice:', voice, 'miscData:', miscData);
+            console.log('[Call] Initiating call to:', phoneNumber, 'with voice:', voice, 'miscData:', miscData, 'telephonyProvider:', telephonyProvider);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/call`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber, systemMessage, voice, miscData })
+                    body: JSON.stringify({ phoneNumber, systemMessage, voice, miscData, telephonyProvider })
                 });
 
                 const data = await response.json();

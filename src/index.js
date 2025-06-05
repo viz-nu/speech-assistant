@@ -24,19 +24,29 @@ fastify.register(fastifyWs);
 fastify.register(fastifyCors, { origin: true, credentials: true });
 fastify.get('/', async (request, reply) => { return { message: 'Twilio Media Stream Server is running!', status: 'healthy', timestamp: new Date().toISOString() }; });
 fastify.get('/health', async (request, reply) => { return { status: 'ok', worker: process.pid }; });
-// POST endpoint to initiate calls
+// WebSocket endpoint for media streams (if needed)
+fastify.register(setupWebSocketRoutes);
+fastify.register(multipart);
 fastify.post('/call', async (request, reply) => {
     try {
-        const { phoneNumber, systemMessage, voice = "ash", miscData = [] } = request.body;
+        const { phoneNumber, systemMessage, voice = "ash", miscData = [], telephonyProvider = "exotel" } = request.body;
         if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
-        // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
-        const data = { phoneNumber, voice, provider: "openai", telephonyProvider: "twilio", transcripts: [], misc: {}, conclusion: miscData };
+        const data = { phoneNumber, voice, provider: "openai", telephonyProvider: telephonyProvider, transcripts: [], misc: {}, conclusion: miscData };
         if (systemMessage) data.systemMessage = systemMessage;
-        const session = await CallSession.create(data);
-        const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
-        const sanitizedCall = JSON.parse(JSON.stringify(call));
-        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
-        // const result = await makeCallUsingExotel(phoneNumber);
+        let session = await CallSession.create(data);
+        switch (telephonyProvider) {
+            case 'twilio':
+                const call = await makeCallUsingTwilio({ to: phoneNumber, _id: session._id });
+                const sanitizedCall = JSON.parse(JSON.stringify(call));
+                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: call.sid, misc: { twilio: { sanitizedCall } } } });
+                break;
+            case 'exotel':
+                const result = await makeCallUsingExotel({ phoneNumber, _id: session._id });
+                session = await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: result.Call.Sid, misc: { exotel: { result } } } });
+                break;
+            default:
+                return reply.code(400).send({ error: 'Invalid telephony provider', message: 'Supported providers are twilio and exotel' });
+        }
         return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: session });
     } catch (error) {
         fastify.log.error(error);
@@ -50,9 +60,7 @@ fastify.get('/call-summary', async (request, reply) => {
         if (!session) return reply.code(404).send({ error: 'Session not found', message: 'No session found with the provided ID' });
         if (session.concluded) return reply.code(200).send({ success: true, message: `summary extracted`, data: session.conclusion });
         const schema = session.conclusion; // assuming schema was stored here
-        if (!Array.isArray(schema)) {
-            return reply.code(500).send({ error: 'Schema format invalid', message: 'Expected conclusion to be an array schema before processing' });
-        }
+        if (!Array.isArray(schema)) return reply.code(500).send({ error: 'Schema format invalid', message: 'Expected conclusion to be an array schema before processing' });
         const summary = await analyzeConversation(session.transcripts, session.conclusion, OPEN_API_KEY);
         await CallSession.findByIdAndUpdate(sessionId, { $set: { conclusion: summary, concluded: true } });
         const html = jsonArrayToHtmlTable(summary);
@@ -76,73 +84,15 @@ fastify.all('/incoming-call', async (request, reply) => {
                           </Response>`;
     reply.type('text/xml').send(twimlResponse);
 });
-// WebSocket endpoint for media streams (if needed)
-fastify.register(setupWebSocketRoutes);
-fastify.register(multipart);
-// Your existing route
-fastify.post('/exotel-call', async (request, reply) => {
-    try {
-        const { phoneNumber, systemMessage, voice = "ash", miscData = [] } = request.body;
-        if (!phoneNumber) return reply.code(400).send({ error: 'Phone number is required', message: 'Please provide a phoneNumber in the request body' });
-        // if (!/^\+?1?\d{10,15}$/.test(phoneNumber.replace(/\D/g, ''))) return reply.code(400).send({ error: 'Invalid phone number', message: 'Please provide a valid phone number' });
-        const data = { phoneNumber, voice, provider: "openai", telephonyProvider: "exotel", transcripts: [], misc: {}, conclusion: miscData };
-        if (systemMessage) data.systemMessage = systemMessage;
-        const session = await CallSession.create(data);
-        const result = await makeCallUsingExotel({ phoneNumber, _id: session._id });
-        await CallSession.findByIdAndUpdate(session._id, { $set: { callSessionId: result.Call.Sid, misc: { exotel: { result } } } });
-        return reply.code(200).send({ success: true, message: `Call initiated to ${phoneNumber}`, data: result });
-    } catch (error) {
-        fastify.log.error(error);
-        return reply.code(500).send({
-            error: error.response?.data || error.message,
-            message: 'Failed to initiate call'
-        });
-    }
-});
 
 fastify.get("/get-websocket", async (request, reply) => {
     try {
-        const customField = request.query.CustomField;
-
-        if (!customField) {
-            return reply.code(400).send({ error: 'Missing CustomField in query params' });
-        }
-
-        let sessionId, source;
-
-        try {
-            ({ sessionId, source } = JSON.parse(customField));
-        } catch (parseError) {
-            return reply.code(400).send({ error: 'CustomField must be valid JSON with sessionId and source' });
-        }
-
-        // Sanitize and construct domain
-        const cleanDomain = DOMAIN.replace(/^https?:\/\//, '');
-
-        // Construct query parameters
-        const queryParams = new URLSearchParams({
-            sessionId,
-            source: source || 'unknown'
-        });
-
-        // Validate query param length (Exotel limit: 256 characters)
-        if (queryParams.toString().length > 256) {
-            return reply.code(400).send({
-                error: 'Query parameters exceed 256 character limit for Exotel'
-            });
-        }
-
-        const wsUrl = `wss://${cleanDomain}/media-stream?${queryParams.toString()}`;
-        console.log("Generated WS URL:", wsUrl);
-
-        // Send the response
-        return reply.type('application/json').send({ url: wsUrl });
+        const { sessionId, source } = JSON.parse(request.query.CustomField)
+        const queryParams = new URLSearchParams({ sessionId, source: source || 'unknown' });
+        return reply.type('application/json').send({ url: `wss://${DOMAIN.replace(/^https?:\/\//, '')}/media-stream?${queryParams.toString()}` });
     } catch (error) {
         fastify.log.error(error);
-        return reply.code(500).send({
-            error: 'Internal server error',
-            message: 'Failed to retrieve WebSocket URL'
-        });
+        return reply.code(500).send({ error: 'Internal server error', message: 'Failed to retrieve WebSocket URL' });
     }
 });
 
