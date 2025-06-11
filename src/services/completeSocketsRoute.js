@@ -28,7 +28,7 @@ export function setupWebSocketRoutes(fastify) {
               source = parsed.start.customParameters?.source || parsed.start.custom_parameters?.source || 'unknown';
               callSid = parsed.start.callSid || parsed.start.call_sid;
               try {
-                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid, callSid })
+                const { status, message, mediaHandler } = await initiateConnectionBetweenUserAndProvider({ sessionId, connection, streamSid: parsed.start.streamSid || parsed.start.stream_sid, callSid })
                 if (!status) {
                   console.error(message);
                   connection.close();

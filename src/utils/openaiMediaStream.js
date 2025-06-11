@@ -26,6 +26,22 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         this.inactivityTimeout = null;
         this.inactivityDurationMs = 5000; // 5 seconds
         this.callSid = config.callSid || null; // Optional callSid for Twilio
+        // for interruptions 
+        this.lastAssistantItemId = null;
+        this.responseStartTimestampTwilio = null;
+        this.latestMediaTimestamp = 0;
+        this.markQueue = [];
+    }
+    sendMarkToTwilio() {
+        if (this.streamSid && this.connection?.readyState === WebSocket.OPEN) {
+            const markEvent = {
+                event: 'mark',
+                streamSid: this.streamSid,
+                mark: { name: 'responsePart' }
+            };
+            this.connection.send(JSON.stringify(markEvent));
+            this.markQueue.push('responsePart');
+        }
     }
     startInactivityTimer() {
         if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
@@ -112,7 +128,8 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
         if (this.streamSid && this.connection?.readyState === WebSocket.OPEN) {
             const clearMessage = {
                 event: "clear",
-                streamSid: this.streamSid
+                streamSid: this.streamSid,
+                "stream_sid": this.streamSid,
             };
             this.connection.send(JSON.stringify(clearMessage));
             console.log(`[${this.callSessionId}] Sent 'clear' message to Twilio for streamSid ${this.streamSid}`);
@@ -153,6 +170,15 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         };
                         this.connection.send(JSON.stringify(audioDelta));
                     }
+                    if (!this.responseStartTimestampTwilio) {
+                        this.responseStartTimestampTwilio = this.latestMediaTimestamp;
+                    }
+
+                    if (response.item_id) {
+                        this.lastAssistantItemId = response.item_id;
+                    }
+
+                    this.sendMarkToTwilio();
                     break;
                 case 'session.updated':
                     // console.log('Session updated');
@@ -163,9 +189,18 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                         const now = Date.now();
                         if (this.isAssistantSpeaking && now - this.lastInterruptionTime > this.interruptCooldownMs) {
                             console.log('User started speaking - interrupting model');
+                            if (this.lastAssistantItemId && this.responseStartTimestampTwilio != null) {
+                                const elapsedTime = this.latestMediaTimestamp - this.responseStartTimestampTwilio;
+                                const truncateEvent = { type: 'conversation.item.truncate', item_id: this.lastAssistantItemId, content_index: 0, audio_end_ms: elapsedTime };
+                                this.openAiWs.send(JSON.stringify(truncateEvent));
+                            }
                             this.openAiWs.send(JSON.stringify({ type: 'response.stop' }));
                             this.sendClearToTwilio();
+
                             this.lastInterruptionTime = now;
+                            this.lastAssistantItemId = null;
+                            this.responseStartTimestampTwilio = null;
+                            this.markQueue = [];
                         } else {
                             console.log('Speech_start ignored due to cooldown or model not speaking');
                         }
@@ -194,6 +229,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
             switch (data.event) {
                 case 'media':
                     let base64Audio = data.media.payload;
+                    this.latestMediaTimestamp = data.media.timestamp;
                     if (this.telephonyProvider === 'exotel') {
                         const raw8kBuffer = Buffer.from(base64Audio, 'base64');
                         const resampledBuffer = resamplePCM(raw8kBuffer, 8000, 24000);
@@ -211,6 +247,11 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 case 'stop':
                     console.log('user disconnected the call');
                     this.disconnect('user_disconnect');
+                    break;
+                case 'mark':
+                    if (this.markQueue.length > 0) {
+                        this.markQueue.shift();
+                    }
                     break;
                 default:
                     console.log('Received non-media event:', data.event);
