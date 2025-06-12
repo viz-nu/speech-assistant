@@ -157,29 +157,23 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 case 'response.audio.delta':
                     this.isAssistantSpeaking = true;
                     if (response.delta) {
-                        let payload = response.delta;
-                        if (this.telephonyProvider === 'exotel') {
-                            const assistantBuffer = Buffer.from(response.delta, 'base64');
-                            const downsampled = resamplePCM(assistantBuffer, 24000, 8000);
-                            payload = downsampled.toString('base64');
+                        let audioBuffer = Buffer.from(response.delta, 'base64');
+                        // If Exotel, resample the audio (PCM 24kHz → 8kHz)
+                        if (this.telephonyProvider === 'exotel') audioBuffer = resamplePCM(audioBuffer, 24000, 8000); // returns a Buffer
+                        // Chunk the audioBuffer (e.g., 320 bytes per chunk = 20ms @ 8kHz mono PCM)
+                        const chunkSize = 320; // adjust based on your provider's requirements
+                        for (let i = 0; i < audioBuffer.length; i += chunkSize) {
+                            const chunk = audioBuffer.subarray(i, i + chunkSize);
+                            const payload = chunk.toString('base64');
+                            const audioDelta = { event: 'media', streamSid: this.streamSid, media: { payload } };
+                            this.connection.send(JSON.stringify(audioDelta));
                         }
-                        const audioDelta = {
-                            event: 'media',
-                            streamSid: this.streamSid,
-                            media: { payload }
-                        };
-                        this.connection.send(JSON.stringify(audioDelta));
                     }
-                    if (!this.responseStartTimestampTwilio) {
-                        this.responseStartTimestampTwilio = this.latestMediaTimestamp;
-                    }
-
-                    if (response.item_id) {
-                        this.lastAssistantItemId = response.item_id;
-                    }
-
+                    if (!this.responseStartTimestampTwilio) this.responseStartTimestampTwilio = this.latestMediaTimestamp;
+                    if (response.item_id) this.lastAssistantItemId = response.item_id;
                     this.sendMarkToTwilio();
                     break;
+
                 case 'session.updated':
                     // console.log('Session updated');
                     break;
@@ -196,7 +190,6 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                             }
                             this.openAiWs.send(JSON.stringify({ type: 'response.stop' }));
                             this.sendClearToTwilio();
-
                             this.lastInterruptionTime = now;
                             this.lastAssistantItemId = null;
                             this.responseStartTimestampTwilio = null;
