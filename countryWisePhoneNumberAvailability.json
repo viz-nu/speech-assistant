@@ -1,0 +1,292 @@
+[
+    {
+        "country": "Germany",
+        "code": "DE",
+        "availableTypes": ["local","mobile"]
+    },
+    {
+        "country": "Italy",
+        "code": "IT",
+        "availableTypes": []
+    },
+    {
+        "country": "Japan",
+        "code": "JP",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Estonia",
+        "code": "EE",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Denmark",
+        "code": "DK",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Bulgaria",
+        "code": "BG",
+        "availableTypes": ["tollFree"]
+    },
+    {
+        "country": "Malaysia",
+        "code": "MY",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Chile",
+        "code": "CL",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Brazil",
+        "code": "BR",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Thailand",
+        "code": "TH",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Portugal",
+        "code": "PT",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Romania",
+        "code": "RO",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "United Kingdom",
+        "code": "GB",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Argentina",
+        "code": "AR",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Austria",
+        "code": "AT",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Belgium",
+        "code": "BE",
+        "availableTypes": ["tollFree"]
+    },
+    {
+        "country": "Botswana",
+        "code": "BW",
+        "availableTypes": ["tollFree"]
+    },
+    {
+        "country": "Colombia",
+        "code": "CO",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Croatia",
+        "code": "HR",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Finland",
+        "code": "FI",
+        "availableTypes": ["mobile","tollFree"]
+    },
+    {
+        "country": "Indonesia",
+        "code": "ID",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Israel",
+        "code": "IL",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Mexico",
+        "code": "MX",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Peru",
+        "code": "PE",
+        "availableTypes": ["tollFree"]
+    },
+    {
+        "country": "Philippines",
+        "code": "PH",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Poland",
+        "code": "PL",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Slovakia",
+        "code": "SK",
+        "availableTypes": ["tollFree"]
+    },
+    {
+        "country": "South Africa",
+        "code": "ZA",
+        "availableTypes": ["local","mobile"]
+    },
+    {
+        "country": "Sweden",
+        "code": "SE",
+        "availableTypes": []
+    },
+    {
+        "country": "Tunisia",
+        "code": "TN",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Namibia",
+        "code": "NA",
+        "availableTypes": []
+    },
+    {
+        "country": "Guinea",
+        "code": "GN",
+        "availableTypes": []
+    },
+    {
+        "country": "Macao",
+        "code": "MO",
+        "availableTypes": []
+    },
+    {
+        "country": "Hungary",
+        "code": "HU",
+        "availableTypes": []
+    },
+    {
+        "country": "Ireland",
+        "code": "IE",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Australia",
+        "code": "AU",
+        "availableTypes": ["local","mobile","tollFree"]
+    },
+    {
+        "country": "Lithuania",
+        "code": "LT",
+        "availableTypes": []
+    },
+    {
+        "country": "Canada",
+        "code": "CA",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Panama",
+        "code": "PA",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Czech Republic",
+        "code": "CZ",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Ghana",
+        "code": "GH",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Algeria",
+        "code": "DZ",
+        "availableTypes": []
+    },
+    {
+        "country": "United States",
+        "code": "US",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Virgin Islands, U.S.",
+        "code": "VI",
+        "availableTypes": []
+    },
+    {
+        "country": "Ecuador",
+        "code": "EC",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Kenya",
+        "code": "KE",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Netherlands",
+        "code": "NL",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Switzerland",
+        "code": "CH",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Slovenia",
+        "code": "SI",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Puerto Rico",
+        "code": "PR",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "New Zealand",
+        "code": "NZ",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Hong Kong",
+        "code": "HK",
+        "availableTypes": ["local","tollFree"]
+    },
+    {
+        "country": "Grenada",
+        "code": "GD",
+        "availableTypes": []
+    },
+    {
+        "country": "Greece",
+        "code": "GR",
+        "availableTypes": []
+    },
+    {
+        "country": "Georgia",
+        "code": "GE",
+        "availableTypes": []
+    },
+    {
+        "country": "El Salvador",
+        "code": "SV",
+        "availableTypes": ["local"]
+    },
+    {
+        "country": "Benin",
+        "code": "BJ",
+        "availableTypes": ["mobile"]
+    },
+    {
+        "country": "Barbados",
+        "code": "BB",
+        "availableTypes": []
+    }
+]

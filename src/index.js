@@ -11,7 +11,7 @@ import fastifyCors from '@fastify/cors';
 import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import multipart from '@fastify/multipart';
-import { makeCallUsingTwilio } from './utils/twillio.js';
+import { listAvailableNumbers, makeCallUsingTwilio } from './utils/twillio.js';
 import { setupWebSocketRoutes } from './services/completeSocketsRoute.js';
 import { analyzeConversation } from './utils/openAi.js';
 import { CallSession } from './models/sessionData.js';
@@ -95,7 +95,16 @@ fastify.get("/get-websocket", async (request, reply) => {
         return reply.code(500).send({ error: 'Internal server error', message: 'Failed to retrieve WebSocket URL' });
     }
 });
-
+fastify.get('/numbers', async (req, res) => {
+    const { isoCountry = 'US', capabilities = [], types = ['Local'], searchType = 'number', searchFilter = 'any' } = req.query;
+    try {
+        let results = await listAvailableNumbers({ isoCountry, capabilities, types, searchType, searchFilter });
+        res.code(200).send(results);
+    } catch (err) {
+        console.error('Internal Error:', err);
+        res.code(500).send({ error: 'Server error fetching available numbers' });
+    }
+});
 // Start the server
 const start = async () => {
     try {

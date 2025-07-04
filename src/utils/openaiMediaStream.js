@@ -116,7 +116,7 @@ export class OpenAIMediaStreamHandler extends BaseMediaStreamHandler {
                 content: [
                     {
                         type: 'input_text',
-                        text: 'Greet the user with "Hello this is AVA, how can I help you?"'
+                        text: 'Greet the user with "Hello? Hello? is this the good time talking to you?"'
                     }
                 ]
             }

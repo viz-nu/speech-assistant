@@ -19,6 +19,20 @@ export const makeCallUsingTwilio = async (session) => {
         throw error;
     }
 }
+export async function listAvailableNumbers({ isoCountry, capabilities, types, searchType, searchFilter }) {
+    const result = [];
+    for (const type of types) {
+        const listType = type.toLowerCase(); // local, tollfree
+        try {
+            
+            const numbers = await client.availablePhoneNumbers(isoCountry)[listType].list({ limit: 5 });
+            result.push(...numbers.filter(number => { return capabilities.every(cap => { return number.capabilities?.[cap.toLowerCase()] === true; }); }))
+        } catch (err) {
+            console.error(`Error fetching ${type} numbers in ${isoCountry}:`, err.message);
+        }
+    }
+    return result;
+}
 export const cutTheCallUsingTwilio = async (callSid) => {
     try {
         await client.calls(callSid).update({ status: 'completed' });
